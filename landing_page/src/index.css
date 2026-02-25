@@ -1,0 +1,83 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 240 10% 6%;
+    --foreground: 240 5% 96%;
+
+    --card: 240 8% 10%;
+    --card-foreground: 240 5% 96%;
+
+    --popover: 240 8% 10%;
+    --popover-foreground: 240 5% 96%;
+
+    --primary: 265 90% 65%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 240 6% 14%;
+    --secondary-foreground: 240 5% 85%;
+
+    --muted: 240 6% 14%;
+    --muted-foreground: 240 5% 55%;
+
+    --accent: 265 90% 65%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 240 6% 18%;
+    --input: 240 6% 18%;
+    --ring: 265 90% 65%;
+
+    --radius: 0.75rem;
+
+    --glow-primary: 265 100% 70%;
+    --glass-bg: 240 8% 12%;
+    --glass-border: 240 6% 22%;
+
+    --sidebar-background: 240 10% 6%;
+    --sidebar-foreground: 240 5% 96%;
+    --sidebar-primary: 265 90% 65%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 6% 14%;
+    --sidebar-accent-foreground: 240 5% 96%;
+    --sidebar-border: 240 6% 18%;
+    --sidebar-ring: 265 90% 65%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+}
+
+@layer utilities {
+  .glass-card {
+    @apply bg-card/60 backdrop-blur-xl border border-glass-border rounded-2xl;
+  }
+
+  .glow-button {
+    @apply bg-primary text-primary-foreground font-semibold rounded-xl px-8 py-4 
+           shadow-[0_0_30px_hsl(var(--glow-primary)/0.4)] 
+           hover:shadow-[0_0_50px_hsl(var(--glow-primary)/0.6)] 
+           transition-all duration-300 hover:scale-105;
+  }
+
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-[hsl(265,90%,75%)] to-[hsl(290,90%,75%)];
+  }
+
+  .hero-glow {
+    background: radial-gradient(ellipse 60% 40% at 50% 0%, hsl(265 90% 65% / 0.15), transparent);
+  }
+}

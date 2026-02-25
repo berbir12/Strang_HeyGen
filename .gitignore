@@ -1,0 +1,25 @@
+# Env and secrets
+.env
+.env.local
+*.pem
+
+# Backend
+backend/.venv/
+backend/__pycache__/
+*.pyc
+backend/waitlist.json
+backend/jobs.json
+
+# Extension
+extension/node_modules/
+extension/dist/
+
+# Landing
+landing_page/node_modules/
+landing_page/dist/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo

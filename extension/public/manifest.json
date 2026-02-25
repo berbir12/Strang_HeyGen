@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "Strang",
+  "version": "1.0.0",
+  "description": "Turn any text into a video. Highlight or paste—get an AI explainer video in minutes.",
+  "permissions": [
+    "activeTab",
+    "sidePanel",
+    "storage",
+    "scripting"
+  ],
+  "host_permissions": [
+    "http://localhost:8000/*",
+    "https://*/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "action": {
+    "default_title": "Open Strang"
+  }
+}
