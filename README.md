@@ -88,3 +88,4 @@ We’re opening up to a small group first. **[Join the waitlist](https://github.
 ---
 
 *Strang — From text to video, without leaving the page.*
+# Strang-Extension
