@@ -1,0 +1,3 @@
+# Explicit start command for Railpack (optional; FastAPI is auto-detected)
+[start]
+cmd = "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"
