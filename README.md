@@ -2,8 +2,6 @@
 
 **Turn any text into a video. In your browser.**
 
-**Repository:** [github.com/berbir12/Strang1](https://github.com/berbir12/Strang1)
-
 Strang is a Chrome extension that turns what you read into what you watch. Highlight text on any webpage—or paste it in—and get a clear, AI-generated explainer video in minutes. No switching apps, no copying links. Just select, generate, and watch.
 
 ---
@@ -83,7 +81,7 @@ Open http://localhost:8080. To enable Plausible analytics in production, set `VI
 
 ## Get early access
 
-We’re opening up to a small group first. **[Join the waitlist](https://github.com/berbir12/Strang1)** (or use the deployed landing page from this repo) to be notified when Strang is ready.
+We’re opening up to a small group first. **Join the waitlist** (or use the deployed landing page from this repo) to be notified when Strang is ready.
 
 ---
 
