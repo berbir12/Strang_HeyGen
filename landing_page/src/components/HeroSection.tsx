@@ -1,5 +1,3 @@
-import heroVisual from "@/assets/hero-visual.jpg";
-
 const HeroSection = () => {
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden px-4 pt-20 pb-16">
@@ -28,14 +26,38 @@ const HeroSection = () => {
           Highlight any complex topic—from medical conditions like VSD to quantum physics—and watch Visionary AI generate a 3D animated video in seconds.
         </p>
 
-        {/* Hero image */}
-        <div className="relative mx-auto max-w-3xl glass-card p-2 animate-float">
-          <img
-            src={heroVisual}
-            alt="3D cinematic visualization of text transforming into video"
-            className="w-full rounded-xl"
-          />
-          <div className="absolute inset-0 rounded-2xl bg-gradient-to-t from-background/60 via-transparent to-transparent pointer-events-none" />
+        {/* Product preview (no photo) */}
+        <div className="relative mx-auto max-w-3xl glass-card p-5 md:p-6 animate-float text-left">
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="rounded-xl border border-border/80 bg-background/60 p-4">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">Step 1</p>
+              <p className="text-sm font-medium">Highlight or paste any complex text</p>
+            </div>
+            <div className="rounded-xl border border-border/80 bg-background/60 p-4">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">Step 2</p>
+              <p className="text-sm font-medium">AI writes a clean visual script in seconds</p>
+            </div>
+            <div className="rounded-xl border border-border/80 bg-background/60 p-4">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">Step 3</p>
+              <p className="text-sm font-medium">Watch a short cinematic explainer video</p>
+            </div>
+          </div>
+
+          <div className="mt-5 rounded-xl border border-primary/25 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-4">
+            <div className="flex items-center justify-between gap-4">
+              <p className="text-sm text-muted-foreground">Processing topic</p>
+              <span className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+                <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+                Generating video
+              </span>
+            </div>
+            <p className="mt-2 text-base md:text-lg font-semibold">
+              "How a ventricular septal defect affects blood flow"
+            </p>
+            <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-secondary">
+              <div className="h-full w-2/3 rounded-full bg-gradient-to-r from-primary to-[hsl(290,90%,72%)]" />
+            </div>
+          </div>
         </div>
       </div>
     </section>
