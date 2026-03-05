@@ -12,11 +12,11 @@ There are several ways of editing your application.
 
 Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
 
-Changes made via Lovable will be committed automatically to [this repo](https://github.com/berbir12/Strang1).
+Changes made via Lovable will be committed automatically to this repo.
 
 **Use your preferred IDE**
 
-If you want to work locally using your own IDE, you can clone [the repository](https://github.com/berbir12/Strang1) and push changes. Pushed changes will also be reflected in Lovable.
+If you want to work locally using your own IDE, you can clone the repository and push changes. Pushed changes will also be reflected in Lovable.
 
 The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
 
@@ -24,8 +24,8 @@ Follow these steps:
 
 ```sh
 # Step 1: Clone the repository.
-git clone https://github.com/berbir12/Strang1.git
-cd Strang1/landing_page
+git clone <your-repo-url>
+cd <your-project>/landing_page
 
 # Step 2: Install the necessary dependencies.
 npm i

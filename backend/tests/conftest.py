@@ -1,5 +1,5 @@
-"""Pytest fixtures: app with temp data dir and env that disables API key."""
-import os
+"""Pytest fixtures: app with temp SQLite DB and env that disables API key."""
+
 import tempfile
 from pathlib import Path
 
@@ -8,13 +8,14 @@ import pytest
 
 @pytest.fixture(autouse=True)
 def env_and_data_dir(monkeypatch):
-    """Use temp dir for waitlist/jobs and no API key so tests don't need auth."""
+    """Point storage at a temp dir and disable auth for tests."""
     tmp = Path(tempfile.mkdtemp())
-    monkeypatch.setenv("WAITLIST_DIR", str(tmp))
-    monkeypatch.setenv("STRANG_API_KEY", "")
-    # Patch main module so it uses this dir (module already imported with original env)
-    import main as main_module
-    monkeypatch.setattr(main_module, "DATA_DIR", tmp)
-    monkeypatch.setattr(main_module, "WAITLIST_FILE", tmp / "waitlist.json")
-    monkeypatch.setattr(main_module, "JOBS_FILE", tmp / "jobs.json")
+    db_path = tmp / "test.db"
+
+    monkeypatch.setattr("config.STRANG_API_KEY", "")
+    monkeypatch.setattr("config.DB_PATH", db_path)
+
+    import storage.database as db_module
+    monkeypatch.setattr(db_module, "_db_path", db_path)
+
     yield tmp
