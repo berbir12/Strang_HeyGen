@@ -1,4 +1,5 @@
-"""Tests for Strang API: health, waitlist, generate/status (mocked)."""
+"""Tests for Strang API: health, waitlist, generate/status, auth (mocked)."""
+
 import json
 
 import httpx
@@ -11,8 +12,8 @@ import main as main_module
 
 @pytest.fixture
 def client():
-    main_module._load_jobs()
-    return TestClient(main_module.app)
+    with TestClient(main_module.app) as c:
+        yield c
 
 
 def test_health(client: TestClient):
@@ -22,6 +23,8 @@ def test_health(client: TestClient):
     assert data["status"] == "ok"
     assert "openai_configured" in data
     assert "heygen_configured" in data
+    assert "auth_configured" in data
+    assert "stripe_configured" in data
 
 
 def test_waitlist_join_and_count(client: TestClient):
@@ -33,7 +36,6 @@ def test_waitlist_join_and_count(client: TestClient):
     assert r2.status_code == 200
     assert r2.json()["count"] == 1
 
-    # Idempotent: same email again
     r3 = client.post("/waitlist", json={"email": "test@example.com"})
     assert r3.status_code == 200
     r4 = client.get("/waitlist/count")
@@ -47,7 +49,7 @@ def test_waitlist_invalid_email(client: TestClient):
 
 @respx.mock
 def test_generate_returns_job_id(client: TestClient, monkeypatch):
-    """Mock OpenAI and HeyGen so /generate returns a job_id."""
+    """Mock OpenAI and HeyGen so /generate returns a job_id immediately."""
     respx.post("https://api.openai.com/v1/chat/completions").mock(
         return_value=httpx.Response(200, json={
             "choices": [{"message": {"content": json.dumps({
@@ -64,8 +66,8 @@ def test_generate_returns_job_id(client: TestClient, monkeypatch):
         return_value=httpx.Response(200, json={"data": {"status": "pending"}})
     )
 
-    monkeypatch.setattr(main_module, "OPENAI_API_KEY", "sk-test")
-    monkeypatch.setattr(main_module, "HEYGEN_API_KEY", "hg-test")
+    monkeypatch.setattr("config.OPENAI_API_KEY", "sk-test")
+    monkeypatch.setattr("config.HEYGEN_API_KEY", "hg-test")
     r = client.post("/generate", json={"text": "VSD is a heart defect."})
 
     assert r.status_code == 200
@@ -73,14 +75,36 @@ def test_generate_returns_job_id(client: TestClient, monkeypatch):
     assert "job_id" in data
 
 
-def test_generate_no_keys_returns_500(client: TestClient, monkeypatch):
-    monkeypatch.setattr(main_module, "OPENAI_API_KEY", "")
-    monkeypatch.setattr(main_module, "HEYGEN_API_KEY", "")
+def test_generate_no_keys_returns_job(client: TestClient, monkeypatch):
+    """With empty keys, generate still returns 200 (background task handles the failure)."""
+    monkeypatch.setattr("config.OPENAI_API_KEY", "")
+    monkeypatch.setattr("config.HEYGEN_API_KEY", "")
     r = client.post("/generate", json={"text": "Hello"})
-    assert r.status_code == 500
-    assert "OPENAI_API_KEY" in r.json().get("detail", "")
+    assert r.status_code == 200
+    assert "job_id" in r.json()
+
+
+def test_generate_text_too_long(client: TestClient):
+    r = client.post("/generate", json={"text": "x" * 5001})
+    assert r.status_code == 422
 
 
 def test_status_404(client: TestClient):
     r = client.get("/generate/status/nonexistent-job-id")
     assert r.status_code == 404
+
+
+def test_auth_me_dev_mode(client: TestClient):
+    """In dev mode (no auth configured), /auth/me returns anonymous user."""
+    r = client.get("/auth/me")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["user_id"] == "anonymous"
+    assert data["plan"] == "pro"
+
+
+def test_auth_me_requires_token_when_configured(client: TestClient, monkeypatch):
+    """When Supabase JWT is configured, /auth/me requires a valid token."""
+    monkeypatch.setattr("config.SUPABASE_JWT_SECRET", "test-secret-at-least-32-chars-long!")
+    r = client.get("/auth/me")
+    assert r.status_code == 401

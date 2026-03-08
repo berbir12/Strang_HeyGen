@@ -1,21 +1,17 @@
 /**
- * Service worker: opens side panel, forwards selection to backend, handles polling.
+ * Service worker: opens side panel, forwards selection, handles auth token storage.
  */
 
 const DEFAULT_BACKEND = 'http://localhost:8000';
 
-// Let Chrome open the side panel automatically when the user clicks the
-// toolbar icon. This avoids calling sidePanel.open() ourselves and keeps
-// everything within a proper user gesture according to the new API.
 if (chrome.sidePanel && chrome.sidePanel.setPanelBehavior) {
   try {
     chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
   } catch (e) {
-    // Ignore if not supported; user can still open side panel manually.
+    // Ignore if not supported
   }
 }
 
-// Function injected into the tab to read cached selection (set by content script).
 function getPageSelection() {
   try {
     const cached = window.__AI_VIDEO_EXPLAINER_LAST_SELECTION__;
@@ -35,8 +31,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ text: '', success: false });
         return;
       }
-      // Use scripting.executeScript to read selection/cache from the page.
-      // Works even when content script messaging is flaky and reads cached selection.
       chrome.scripting.executeScript(
         { target: { tabId: tab.id }, func: getPageSelection },
         (results) => {
@@ -51,5 +45,42 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     });
     return true;
   }
+
+  // Auth token received from content script (bridged from landing page)
+  if (message.action === 'SET_AUTH_TOKEN') {
+    chrome.storage.local.set({
+      strang_access_token: message.access_token,
+      strang_refresh_token: message.refresh_token || '',
+      strang_email: message.email || '',
+    }, () => {
+      sendResponse({ ok: true });
+    });
+    return true;
+  }
+
+  // Get stored auth token
+  if (message.action === 'GET_AUTH_TOKEN') {
+    chrome.storage.local.get(
+      ['strang_access_token', 'strang_refresh_token', 'strang_email'],
+      (result) => {
+        sendResponse({
+          access_token: result.strang_access_token || '',
+          refresh_token: result.strang_refresh_token || '',
+          email: result.strang_email || '',
+        });
+      }
+    );
+    return true;
+  }
+
+  // Clear auth token (logout)
+  if (message.action === 'CLEAR_AUTH_TOKEN') {
+    chrome.storage.local.remove(
+      ['strang_access_token', 'strang_refresh_token', 'strang_email'],
+      () => { sendResponse({ ok: true }); }
+    );
+    return true;
+  }
+
   return false;
 });
