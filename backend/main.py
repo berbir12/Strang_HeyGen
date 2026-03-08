@@ -1,12 +1,13 @@
 """
 Strang backend — educational video generation API.
 
-Architecture (post-refactor):
+Architecture:
 - FastAPI with BackgroundTasks: /generate returns immediately, work runs async.
-- SQLite persistence (aiosqlite): jobs, waitlist, screenplay cache.
+- SQLite persistence (aiosqlite): jobs, waitlist, users, screenplay cache.
+- Auth: Supabase JWT with legacy API-key fallback.
+- Payments: Stripe Checkout + webhook for subscription lifecycle.
 - Retry on transient failures (tenacity) for OpenAI & HeyGen calls.
 - Structured logging throughout.
-- Modular layout: config / models / services / storage / utils.
 """
 
 import hashlib
@@ -32,17 +33,25 @@ from models.schemas import (
 )
 from services.heygen_service import heygen_create_video, heygen_get_status
 from services.openai_director import get_screenplay
+from services.stripe_service import (
+    create_checkout_session,
+    create_portal_session,
+    handle_webhook_event,
+)
 from storage.database import (
     add_email,
     cache_screenplay,
     create_job,
+    create_user,
     get_cached_screenplay,
     get_job,
+    get_user,
     get_waitlist_count,
+    increment_videos_generated,
     init_db,
     update_job,
 )
-from utils.auth import require_api_key
+from utils.auth import require_auth
 from utils.rate_limit import rate_limit_check
 
 logger = logging.getLogger("strang")
@@ -66,10 +75,41 @@ def _setup_logging() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Subscription check helper
+# ---------------------------------------------------------------------------
+
+async def _ensure_user_record(user: dict) -> dict:
+    """Ensure a user row exists in SQLite. Returns the DB record."""
+    if user["role"] == "admin":
+        return {**user, "subscription_status": "active", "plan": "pro", "videos_generated": 0, "videos_limit": 999999}
+    record = await get_user(user["user_id"])
+    if not record:
+        record = await create_user(user["user_id"], user.get("email", ""))
+    return record
+
+
+async def require_subscription(request: Request, user: dict = Depends(require_auth)) -> dict:
+    """Gate video generation behind subscription / free-tier limit."""
+    record = await _ensure_user_record(user)
+    if record.get("subscription_status") in ("active", "trialing"):
+        return {**user, **record}
+
+    if record["videos_generated"] >= record["videos_limit"]:
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                f"Free tier limit reached ({record['videos_limit']} videos). "
+                "Subscribe to generate more."
+            ),
+        )
+    return {**user, **record}
+
+
+# ---------------------------------------------------------------------------
 # Background worker
 # ---------------------------------------------------------------------------
 
-async def process_video_job(job_id: str, text: str) -> None:
+async def process_video_job(job_id: str, text: str, user_id: str | None = None) -> None:
     """Background task: OpenAI screenplay -> HeyGen video creation."""
     try:
         text_hash = hashlib.sha256(text.encode()).hexdigest()
@@ -86,6 +126,9 @@ async def process_video_job(job_id: str, text: str) -> None:
         video_id = await heygen_create_video(screenplay)
         await update_job(job_id, video_id=video_id, status="processing")
         logger.info("HeyGen video queued for job %s (video_id=%s)", job_id, video_id)
+
+        if user_id and user_id not in ("admin", "anonymous"):
+            await increment_videos_generated(user_id)
 
     except HTTPException as exc:
         logger.error("Job %s failed: %s", job_id, exc.detail)
@@ -131,6 +174,51 @@ app.add_middleware(
 
 
 # ---------------------------------------------------------------------------
+# Auth routes
+# ---------------------------------------------------------------------------
+
+@app.get("/auth/me")
+async def auth_me(user: dict = Depends(require_auth)):
+    """Return current user info and subscription status."""
+    record = await _ensure_user_record(user)
+    return {
+        "user_id": user["user_id"],
+        "email": user.get("email"),
+        "plan": record.get("plan", "free"),
+        "subscription_status": record.get("subscription_status", "free"),
+        "videos_generated": record.get("videos_generated", 0),
+        "videos_limit": record.get("videos_limit", config.FREE_TIER_VIDEO_LIMIT),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Stripe routes
+# ---------------------------------------------------------------------------
+
+@app.post("/stripe/checkout")
+async def stripe_checkout(user: dict = Depends(require_auth)):
+    """Create a Stripe Checkout Session and return the URL."""
+    url = await create_checkout_session(user["user_id"], user.get("email", ""))
+    return {"url": url}
+
+
+@app.post("/stripe/portal")
+async def stripe_portal(user: dict = Depends(require_auth)):
+    """Create a Stripe Customer Portal session."""
+    url = await create_portal_session(user["user_id"])
+    return {"url": url}
+
+
+@app.post("/stripe/webhook")
+async def stripe_webhook(request: Request):
+    """Handle Stripe webhook events (no auth — Stripe signs the payload)."""
+    payload = await request.body()
+    sig = request.headers.get("stripe-signature", "")
+    await handle_webhook_event(payload, sig)
+    return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
 # Video generation routes
 # ---------------------------------------------------------------------------
 
@@ -139,7 +227,7 @@ async def generate(
     request: Request,
     req: GenerateRequest,
     bg: BackgroundTasks,
-    _: None = Depends(require_api_key),
+    user: dict = Depends(require_subscription),
 ):
     """Accept text, queue a background job, and return immediately."""
     client_id = request.client.host if request.client else "unknown"
@@ -149,14 +237,14 @@ async def generate(
     job_id = str(uuid.uuid4())
     await create_job(job_id, input_text=text)
 
-    bg.add_task(process_video_job, job_id, text)
-    logger.info("Job %s queued for client %s", job_id, client_id)
+    bg.add_task(process_video_job, job_id, text, user.get("user_id"))
+    logger.info("Job %s queued for user %s", job_id, user.get("user_id", client_id))
 
     return GenerateResponse(job_id=job_id)
 
 
 @app.get("/generate/status/{job_id}", response_model=StatusResponse)
-async def get_status(job_id: str, _: None = Depends(require_api_key)):
+async def get_status(job_id: str, _user: dict = Depends(require_auth)):
     """Poll job status. Fetches live HeyGen status for in-progress jobs."""
     job = await get_job(job_id)
     if not job:
@@ -213,11 +301,13 @@ async def waitlist_count():
 
 @app.get("/health")
 def health():
-    """Basic health check; includes whether API keys are configured."""
+    """Basic health check; reports which integrations are configured."""
     return {
         "status": "ok",
         "openai_configured": bool(config.OPENAI_API_KEY.strip()),
         "heygen_configured": bool(config.HEYGEN_API_KEY.strip()),
+        "auth_configured": bool(config.SUPABASE_JWT_SECRET),
+        "stripe_configured": bool(config.STRIPE_SECRET_KEY),
     }
 
 

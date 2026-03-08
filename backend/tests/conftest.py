@@ -1,4 +1,4 @@
-"""Pytest fixtures: app with temp SQLite DB and env that disables API key."""
+"""Pytest fixtures: app with temp SQLite DB and env that disables auth for tests."""
 
 import tempfile
 from pathlib import Path
@@ -8,11 +8,13 @@ import pytest
 
 @pytest.fixture(autouse=True)
 def env_and_data_dir(monkeypatch):
-    """Point storage at a temp dir and disable auth for tests."""
+    """Point storage at a temp dir and disable all auth so tests run cleanly."""
     tmp = Path(tempfile.mkdtemp())
     db_path = tmp / "test.db"
 
     monkeypatch.setattr("config.STRANG_API_KEY", "")
+    monkeypatch.setattr("config.SUPABASE_JWT_SECRET", "")
+    monkeypatch.setattr("config.STRIPE_SECRET_KEY", "")
     monkeypatch.setattr("config.DB_PATH", db_path)
 
     import storage.database as db_module

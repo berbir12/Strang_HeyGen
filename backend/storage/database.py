@@ -44,6 +44,21 @@ async def init_db() -> None:
                 created_at      REAL NOT NULL
             )
         """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id                  TEXT PRIMARY KEY,
+                email               TEXT NOT NULL,
+                stripe_customer_id  TEXT,
+                subscription_status TEXT NOT NULL DEFAULT 'free',
+                subscription_id     TEXT,
+                plan                TEXT NOT NULL DEFAULT 'free',
+                videos_generated    INTEGER NOT NULL DEFAULT 0,
+                videos_limit        INTEGER NOT NULL DEFAULT 3,
+                current_period_end  REAL,
+                created_at          REAL NOT NULL,
+                updated_at          REAL NOT NULL
+            )
+        """)
         await db.commit()
 
 
@@ -130,5 +145,61 @@ async def cache_screenplay(text_hash: str, screenplay_json: str) -> None:
             "INSERT OR REPLACE INTO screenplay_cache "
             "(text_hash, screenplay_json, created_at) VALUES (?, ?, ?)",
             (text_hash, screenplay_json, time.time()),
+        )
+        await db.commit()
+
+
+# ---------------------------------------------------------------------------
+# Users (linked to Supabase user ID)
+# ---------------------------------------------------------------------------
+
+async def get_user(user_id: str) -> dict | None:
+    async with aiosqlite.connect(str(_db_path)) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute("SELECT * FROM users WHERE id = ?", (user_id,))
+        row = await cursor.fetchone()
+        return dict(row) if row else None
+
+
+async def get_user_by_stripe_customer(customer_id: str) -> dict | None:
+    async with aiosqlite.connect(str(_db_path)) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute(
+            "SELECT * FROM users WHERE stripe_customer_id = ?", (customer_id,),
+        )
+        row = await cursor.fetchone()
+        return dict(row) if row else None
+
+
+async def create_user(user_id: str, email: str) -> dict:
+    now = time.time()
+    limit = config.FREE_TIER_VIDEO_LIMIT
+    async with aiosqlite.connect(str(_db_path)) as db:
+        await db.execute(
+            "INSERT OR IGNORE INTO users "
+            "(id, email, videos_limit, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+            (user_id, email, limit, now, now),
+        )
+        await db.commit()
+    return (await get_user(user_id))  # type: ignore[return-value]
+
+
+async def update_user(user_id: str, **fields: object) -> None:
+    if not fields:
+        return
+    fields["updated_at"] = time.time()
+    set_clause = ", ".join(f"{k} = ?" for k in fields)
+    values = list(fields.values()) + [user_id]
+    async with aiosqlite.connect(str(_db_path)) as db:
+        await db.execute(f"UPDATE users SET {set_clause} WHERE id = ?", values)
+        await db.commit()
+
+
+async def increment_videos_generated(user_id: str) -> None:
+    async with aiosqlite.connect(str(_db_path)) as db:
+        await db.execute(
+            "UPDATE users SET videos_generated = videos_generated + 1, "
+            "updated_at = ? WHERE id = ?",
+            (time.time(), user_id),
         )
         await db.commit()

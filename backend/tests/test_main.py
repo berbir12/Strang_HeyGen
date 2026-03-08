@@ -1,4 +1,4 @@
-"""Tests for Strang API: health, waitlist, generate/status (mocked)."""
+"""Tests for Strang API: health, waitlist, generate/status, auth (mocked)."""
 
 import json
 
@@ -23,6 +23,8 @@ def test_health(client: TestClient):
     assert data["status"] == "ok"
     assert "openai_configured" in data
     assert "heygen_configured" in data
+    assert "auth_configured" in data
+    assert "stripe_configured" in data
 
 
 def test_waitlist_join_and_count(client: TestClient):
@@ -73,13 +75,11 @@ def test_generate_returns_job_id(client: TestClient, monkeypatch):
     assert "job_id" in data
 
 
-def test_generate_no_keys_returns_error(client: TestClient, monkeypatch):
-    """With empty keys, the background task fails and marks the job as failed."""
+def test_generate_no_keys_returns_job(client: TestClient, monkeypatch):
+    """With empty keys, generate still returns 200 (background task handles the failure)."""
     monkeypatch.setattr("config.OPENAI_API_KEY", "")
     monkeypatch.setattr("config.HEYGEN_API_KEY", "")
     r = client.post("/generate", json={"text": "Hello"})
-    # /generate now returns 200 immediately (background task);
-    # check that a job_id was returned
     assert r.status_code == 200
     assert "job_id" in r.json()
 
@@ -92,3 +92,19 @@ def test_generate_text_too_long(client: TestClient):
 def test_status_404(client: TestClient):
     r = client.get("/generate/status/nonexistent-job-id")
     assert r.status_code == 404
+
+
+def test_auth_me_dev_mode(client: TestClient):
+    """In dev mode (no auth configured), /auth/me returns anonymous user."""
+    r = client.get("/auth/me")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["user_id"] == "anonymous"
+    assert data["plan"] == "pro"
+
+
+def test_auth_me_requires_token_when_configured(client: TestClient, monkeypatch):
+    """When Supabase JWT is configured, /auth/me requires a valid token."""
+    monkeypatch.setattr("config.SUPABASE_JWT_SECRET", "test-secret-at-least-32-chars-long!")
+    r = client.get("/auth/me")
+    assert r.status_code == 401

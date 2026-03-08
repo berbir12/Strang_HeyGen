@@ -1,10 +1,10 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 
 const BACKEND_KEY = 'strang_backend_url';
 const BACKEND_KEY_LEGACY = 'ai_video_explainer_backend_url';
 const API_KEY_STORAGE_KEY = 'strang_api_key';
-// For Chrome Web Store build, set VITE_STRANG_API_URL to your production API (e.g. in CI or .env.production).
 const DEFAULT_BACKEND = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_STRANG_API_URL) || 'http://localhost:8000';
+const LANDING_URL = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_LANDING_URL) || 'http://localhost:5173';
 const MAX_CHARS = 3000;
 const SOFT_LIMIT_CHARS = 2500;
 
@@ -24,7 +24,7 @@ function setBackendUrl(url) {
   } catch (_) {}
 }
 
-function getApiKey() {
+function getLegacyApiKey() {
   try {
     return localStorage.getItem(API_KEY_STORAGE_KEY) || '';
   } catch {
@@ -32,7 +32,7 @@ function getApiKey() {
   }
 }
 
-function setApiKey(key) {
+function setLegacyApiKey(key) {
   try {
     localStorage.setItem(API_KEY_STORAGE_KEY, key || '');
   } catch (_) {}
@@ -49,20 +49,92 @@ function progressLabel(status) {
   }
 }
 
+function getAuthToken() {
+  return new Promise((resolve) => {
+    try {
+      chrome.runtime.sendMessage({ action: 'GET_AUTH_TOKEN' }, (res) => {
+        if (chrome.runtime.lastError) {
+          resolve({ access_token: '', email: '' });
+          return;
+        }
+        resolve(res || { access_token: '', email: '' });
+      });
+    } catch {
+      resolve({ access_token: '', email: '' });
+    }
+  });
+}
+
+function clearAuthToken() {
+  return new Promise((resolve) => {
+    try {
+      chrome.runtime.sendMessage({ action: 'CLEAR_AUTH_TOKEN' }, () => resolve());
+    } catch {
+      resolve();
+    }
+  });
+}
+
 export default function App() {
   const [selectedText, setSelectedText] = useState('');
-  const [status, setStatus] = useState('idle'); // idle | loading | polling | done | error
+  const [status, setStatus] = useState('idle');
   const [videoUrl, setVideoUrl] = useState(null);
   const [error, setError] = useState(null);
   const [backendUrl, setBackendUrlState] = useState(getBackendUrl());
-  const [apiKey, setApiKeyState] = useState(getApiKey());
+  const [legacyApiKey, setLegacyApiKeyState] = useState(getLegacyApiKey());
   const [showSettings, setShowSettings] = useState(false);
 
+  // Auth state
+  const [authToken, setAuthToken] = useState('');
+  const [authEmail, setAuthEmail] = useState('');
+  const [authLoading, setAuthLoading] = useState(true);
+
+  useEffect(() => {
+    getAuthToken().then((res) => {
+      setAuthToken(res.access_token || '');
+      setAuthEmail(res.email || '');
+      setAuthLoading(false);
+    });
+
+    // Listen for token changes (e.g. user logs in from another tab)
+    const listener = (changes) => {
+      if (changes.strang_access_token) {
+        setAuthToken(changes.strang_access_token.newValue || '');
+      }
+      if (changes.strang_email) {
+        setAuthEmail(changes.strang_email.newValue || '');
+      }
+    };
+    try {
+      chrome.storage.onChanged.addListener(listener);
+    } catch {}
+    return () => {
+      try { chrome.storage.onChanged.removeListener(listener); } catch {}
+    };
+  }, []);
+
+  const isLoggedIn = !!authToken;
+
   const authHeaders = () => {
-    const key = getApiKey();
     const h = { 'Content-Type': 'application/json' };
-    if (key) h['X-API-Key'] = key;
+    if (authToken) {
+      h['Authorization'] = `Bearer ${authToken}`;
+    } else {
+      const key = getLegacyApiKey();
+      if (key) h['X-API-Key'] = key;
+    }
     return h;
+  };
+
+  const handleLogin = () => {
+    const url = `${LANDING_URL}/login?extension=true`;
+    chrome.tabs.create({ url });
+  };
+
+  const handleLogout = async () => {
+    await clearAuthToken();
+    setAuthToken('');
+    setAuthEmail('');
   };
 
   const loadSelection = useCallback(() => {
@@ -81,7 +153,7 @@ export default function App() {
 
   const saveBackend = () => {
     setBackendUrl(backendUrl);
-    setApiKey(apiKey);
+    setLegacyApiKey(legacyApiKey);
     setShowSettings(false);
   };
 
@@ -106,6 +178,21 @@ export default function App() {
         headers: authHeaders(),
         body: JSON.stringify({ text }),
       });
+
+      if (res.status === 401) {
+        setError('Session expired. Please log in again.');
+        setStatus('error');
+        await clearAuthToken();
+        setAuthToken('');
+        return;
+      }
+      if (res.status === 403) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.detail || 'Free tier limit reached. Upgrade to Pro to continue.');
+        setStatus('error');
+        return;
+      }
+
       const raw = await res.text();
       let data;
       try {
@@ -129,6 +216,13 @@ export default function App() {
       const poll = async () => {
         try {
           const pollRes = await fetch(`${base}/generate/status/${job_id}`, { headers: authHeaders() });
+
+          if (pollRes.status === 401) {
+            setError('Session expired. Please log in again.');
+            setStatus('error');
+            return;
+          }
+
           const pollRaw = await pollRes.text();
           let pollData = {};
           try {
@@ -175,7 +269,6 @@ export default function App() {
   const copyVideoLink = () => {
     if (!videoUrl) return;
     navigator.clipboard.writeText(videoUrl);
-    // Could add a tiny toast; for now user can see the link was copied if we briefly show feedback
     if (typeof document !== 'undefined') {
       const btn = document.getElementById('strang-copy-link');
       if (btn) {
@@ -194,14 +287,36 @@ export default function App() {
     <div className="min-h-screen bg-background text-foreground p-4 flex flex-col">
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-lg font-display font-semibold text-primary">Strang</h1>
-        <button
-          type="button"
-          onClick={() => setShowSettings(!showSettings)}
-          className="text-muted-foreground hover:text-foreground p-1 rounded-lg transition-colors"
-          title="Settings"
-        >
-          ⚙️
-        </button>
+        <div className="flex items-center gap-2">
+          {!authLoading && (
+            isLoggedIn ? (
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                title={authEmail || 'Logged in'}
+              >
+                {authEmail ? authEmail.split('@')[0] : 'Logout'}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleLogin}
+                className="text-xs px-3 py-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 font-medium transition-colors"
+              >
+                Login
+              </button>
+            )
+          )}
+          <button
+            type="button"
+            onClick={() => setShowSettings(!showSettings)}
+            className="text-muted-foreground hover:text-foreground p-1 rounded-lg transition-colors"
+            title="Settings"
+          >
+            ⚙️
+          </button>
+        </div>
       </div>
 
       {showSettings && (
@@ -216,17 +331,19 @@ export default function App() {
               placeholder="http://localhost:8000"
             />
           </div>
-          <div>
-            <label className="block text-xs text-muted-foreground mb-2">API key (optional)</label>
-            <input
-              type="password"
-              value={apiKey}
-              onChange={(e) => setApiKeyState(e.target.value)}
-              className="w-full px-3 py-2.5 rounded-xl bg-secondary border border-border text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-              placeholder="Leave empty if backend has no key"
-              autoComplete="off"
-            />
-          </div>
+          {!isLoggedIn && (
+            <div>
+              <label className="block text-xs text-muted-foreground mb-2">API key (legacy, optional)</label>
+              <input
+                type="password"
+                value={legacyApiKey}
+                onChange={(e) => setLegacyApiKeyState(e.target.value)}
+                className="w-full px-3 py-2.5 rounded-xl bg-secondary border border-border text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                placeholder="Leave empty if using Login"
+                autoComplete="off"
+              />
+            </div>
+          )}
           <button
             type="button"
             onClick={saveBackend}
@@ -242,7 +359,7 @@ export default function App() {
         <textarea
           value={selectedText}
           onChange={handleTextChange}
-          placeholder="Paste text here, or select text on the page and click “Use selection from page”"
+          placeholder='Paste text here, or select text on the page and click "Use selection from page"'
           className={`w-full h-24 px-3 py-2.5 rounded-xl bg-secondary border text-foreground text-sm placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all ${
             overHard ? 'border-destructive' : overSoft ? 'border-primary/50' : 'border-border'
           }`}
@@ -288,7 +405,25 @@ export default function App() {
       {error && (
         <div className="mb-4 p-3 rounded-xl bg-destructive/20 border border-destructive/30 text-destructive-foreground text-sm space-y-2">
           <p>{error}</p>
-          {(status === 'error') && selectedText.trim() && (
+          {status === 'error' && error.includes('log in') && (
+            <button
+              type="button"
+              onClick={handleLogin}
+              className="text-sm font-medium text-primary hover:text-primary/90"
+            >
+              Log in
+            </button>
+          )}
+          {status === 'error' && error.includes('Upgrade') && (
+            <button
+              type="button"
+              onClick={() => chrome.tabs.create({ url: `${LANDING_URL}/dashboard` })}
+              className="text-sm font-medium text-primary hover:text-primary/90"
+            >
+              Upgrade to Pro
+            </button>
+          )}
+          {status === 'error' && selectedText.trim() && !error.includes('log in') && !error.includes('Upgrade') && (
             <button
               type="button"
               onClick={() => { setError(null); generate(); }}
@@ -337,7 +472,14 @@ export default function App() {
 
       {showEmptyState && (
         <p className="text-sm text-muted-foreground text-center py-6">
-          Highlight text on the page or paste above, then click <strong className="text-foreground">Generate video</strong>.
+          {isLoggedIn ? (
+            <>Highlight text on the page or paste above, then click <strong className="text-foreground">Generate video</strong>.</>
+          ) : (
+            <>
+              <button onClick={handleLogin} className="text-primary hover:underline font-medium">Log in</button>
+              {' '}to get started, or paste text above and click <strong className="text-foreground">Generate video</strong>.
+            </>
+          )}
         </p>
       )}
     </div>
