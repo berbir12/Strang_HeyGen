@@ -25,7 +25,15 @@ npm ci
 npm run build
 ```
 
-Then zip the contents of `dist/` for upload to the Chrome Web Store (see LAUNCH_CHECKLIST.md Phase 3.3).
+Then zip the **contents** of `dist/` for upload to the Chrome Web Store (see LAUNCH_CHECKLIST.md Phase 3.3). The ZIP must have exactly one `manifest.json` at its root (no `extension/` or `dist/` folder inside the ZIP).
+
+**PowerShell (from repo root):**
+```powershell
+cd extension
+npm run build
+Compress-Archive -Path dist\* -DestinationPath strang-extension.zip -Force
+```
+Upload `extension/strang-extension.zip`.
 
 ## Local development
 

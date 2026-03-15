@@ -84,6 +84,9 @@ export default function App() {
   const [legacyApiKey, setLegacyApiKeyState] = useState(getLegacyApiKey());
   const [showSettings, setShowSettings] = useState(false);
 
+  // Generation options
+  const [engine, setEngine] = useState('heygen');
+
   // Auth state
   const [authToken, setAuthToken] = useState('');
   const [authEmail, setAuthEmail] = useState('');
@@ -176,7 +179,7 @@ export default function App() {
       const res = await fetch(`${base}/generate`, {
         method: 'POST',
         headers: authHeaders(),
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ text, engine }),
       });
 
       if (res.status === 401) {
@@ -229,6 +232,11 @@ export default function App() {
             pollData = pollRaw ? JSON.parse(pollRaw) : {};
           } catch (_) {
             setError(pollRaw || 'Invalid response');
+            setStatus('error');
+            return;
+          }
+          if (!pollRes.ok) {
+            setError(pollData.detail || pollData.error || `Status check failed (${pollRes.status})`);
             setStatus('error');
             return;
           }
@@ -382,6 +390,32 @@ export default function App() {
         {overSoft && !overHard && (
           <p className="mt-1 text-xs text-muted-foreground">Longer text may take longer to process. Max {MAX_CHARS.toLocaleString()} characters.</p>
         )}
+      </div>
+
+      <div className="mb-4">
+        <label className="block text-xs text-muted-foreground mb-2">Video engine</label>
+        <div className="flex items-center gap-3 text-xs">
+          <label className="inline-flex items-center gap-1 cursor-pointer">
+            <input
+              type="radio"
+              name="strang-engine"
+              value="heygen"
+              checked={engine === 'heygen'}
+              onChange={() => setEngine('heygen')}
+            />
+            <span className="text-foreground">HeyGen</span>
+          </label>
+          <label className="inline-flex items-center gap-1 cursor-pointer">
+            <input
+              type="radio"
+              name="strang-engine"
+              value="openai"
+              checked={engine === 'openai'}
+              onChange={() => setEngine('openai')}
+            />
+            <span className="text-foreground">OpenAI</span>
+          </label>
+        </div>
       </div>
 
       {progressStep && (

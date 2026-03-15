@@ -23,10 +23,13 @@ HEYGEN_STATUS_URL = "https://api.heygen.com/v1/video_status.get"
 def build_video_agent_prompt(screenplay: Screenplay) -> str:
     """Build a HeyGen-friendly prompt from the structured screenplay."""
     instructions = [
-        "Create a short educational explainer video. Follow this script scene by scene.",
-        "Style: illustrative only—no talking head, no on-screen presenter. "
+        "Create a detailed educational explainer video. Follow this script scene by scene.",
+        "Style: illustrative only — no talking head, no on-screen presenter, no avatar. "
         "Use only the described visuals with voice-over narration. "
         "Keep a clean, cinematic 3D/animation style where it fits.",
+        "Pacing: smooth and readable for learners. Keep transitions coherent between scenes.",
+        "Narration quality: complete, natural, and context-rich. Never end the narration mid-sentence.",
+        "Ensure the final scene closes with a complete takeaway sentence.",
         f"Title: {screenplay.project_title}.",
         "",
         "---",
@@ -39,12 +42,6 @@ def build_video_agent_prompt(screenplay: Screenplay) -> str:
         vo = s.voiceover.strip()
         scenes.append(f'Scene {i} ({v_type}): {visual} VO: "{vo}"')
     return "\n".join(instructions + scenes)
-
-
-def _heygen_duration_sec(screenplay: Screenplay) -> int:
-    """Suggest duration in seconds from scene count (HeyGen min 5)."""
-    n = max(1, len(screenplay.scenes))
-    return max(30, min(300, 45 * n))
 
 
 @retry(
@@ -73,7 +70,9 @@ async def heygen_create_video(screenplay: Screenplay) -> str:
         "prompt": prompt,
         "config": {
             "orientation": "landscape",
-            "duration_sec": _heygen_duration_sec(screenplay),
+            "resolution": "1080p",   # explicit resolution for consistent output quality
+            "avatar": False,         # explicitly disable talking head / avatar
+            "caption": False,        # disable auto-generated subtitles
         },
     }
 

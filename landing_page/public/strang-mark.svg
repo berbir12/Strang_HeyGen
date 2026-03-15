@@ -1,0 +1,17 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="strangStroke" x1="24" y1="20" x2="104" y2="108" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#8B5CF6"/>
+      <stop offset="0.5" stop-color="#C026D3"/>
+      <stop offset="1" stop-color="#9333EA"/>
+    </linearGradient>
+  </defs>
+  <path d="M38 26H90" stroke="url(#strangStroke)" stroke-width="10" stroke-linecap="round"/>
+  <path d="M38 102H90" stroke="url(#strangStroke)" stroke-width="10" stroke-linecap="round"/>
+  <path d="M26 38V90" stroke="url(#strangStroke)" stroke-width="10" stroke-linecap="round"/>
+  <path d="M102 38V90" stroke="url(#strangStroke)" stroke-width="10" stroke-linecap="round"/>
+  <path d="M52 26V102" stroke="url(#strangStroke)" stroke-width="10" stroke-linecap="round"/>
+  <path d="M76 26V102" stroke="url(#strangStroke)" stroke-width="10" stroke-linecap="round"/>
+  <path d="M26 52H102" stroke="url(#strangStroke)" stroke-width="10" stroke-linecap="round"/>
+  <path d="M26 76H102" stroke="url(#strangStroke)" stroke-width="10" stroke-linecap="round"/>
+</svg>

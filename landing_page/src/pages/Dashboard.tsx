@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Loader2, Zap, CreditCard, ExternalLink } from "lucide-react";
+import { Loader2, CreditCard, ExternalLink } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { STRANG_API_URL } from "@/lib/api";
 
@@ -67,7 +67,11 @@ const Dashboard = () => {
       <nav className="border-b border-border">
         <div className="max-w-3xl mx-auto px-4 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
-            <Zap className="w-6 h-6 text-primary" />
+            <img
+              src="/strang-logo.png"
+              alt="Strang logo"
+              className="w-9 h-9 rounded-lg border border-border/60 shadow-sm"
+            />
             <span className="font-display text-xl font-bold">Strang</span>
           </Link>
           <button

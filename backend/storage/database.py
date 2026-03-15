@@ -14,6 +14,28 @@ import config
 _db_path = config.DB_PATH
 
 
+async def _ensure_jobs_engine_column(db: aiosqlite.Connection) -> None:
+    """Backfill schema for older databases by adding jobs.engine when missing."""
+    cursor = await db.execute("PRAGMA table_info(jobs)")
+    cols = await cursor.fetchall()
+    names = {c[1] for c in cols}
+    if "engine" not in names:
+        await db.execute(
+            "ALTER TABLE jobs ADD COLUMN engine TEXT NOT NULL DEFAULT 'heygen'"
+        )
+
+
+async def _ensure_jobs_extension_count_column(db: aiosqlite.Connection) -> None:
+    """Backfill schema for older databases by adding jobs.extension_count when missing."""
+    cursor = await db.execute("PRAGMA table_info(jobs)")
+    cols = await cursor.fetchall()
+    names = {c[1] for c in cols}
+    if "extension_count" not in names:
+        await db.execute(
+            "ALTER TABLE jobs ADD COLUMN extension_count INTEGER NOT NULL DEFAULT 0"
+        )
+
+
 async def init_db() -> None:
     """Create tables if they don't exist. Called once at startup."""
     _db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -22,6 +44,8 @@ async def init_db() -> None:
             CREATE TABLE IF NOT EXISTS jobs (
                 id           TEXT PRIMARY KEY,
                 status       TEXT NOT NULL DEFAULT 'pending',
+                engine       TEXT NOT NULL DEFAULT 'heygen',
+                extension_count INTEGER NOT NULL DEFAULT 0,
                 video_id     TEXT,
                 video_url    TEXT,
                 error        TEXT,
@@ -30,6 +54,8 @@ async def init_db() -> None:
                 updated_at   REAL NOT NULL
             )
         """)
+        await _ensure_jobs_engine_column(db)
+        await _ensure_jobs_extension_count_column(db)
         await db.execute("""
             CREATE TABLE IF NOT EXISTS waitlist (
                 id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -66,18 +92,18 @@ async def init_db() -> None:
 # Jobs
 # ---------------------------------------------------------------------------
 
-async def create_job(job_id: str, input_text: str = "") -> dict:
+async def create_job(job_id: str, input_text: str = "", engine: str = "heygen") -> dict:
     now = time.time()
     async with aiosqlite.connect(str(_db_path)) as db:
         await db.execute(
-            "INSERT INTO jobs (id, status, input_text, created_at, updated_at) "
-            "VALUES (?, ?, ?, ?, ?)",
-            (job_id, "pending", input_text, now, now),
+            "INSERT INTO jobs (id, status, engine, input_text, created_at, updated_at) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (job_id, "pending", engine, input_text, now, now),
         )
         await db.commit()
     return {
         "id": job_id, "status": "pending",
-        "video_id": None, "video_url": None, "error": None,
+        "engine": engine, "video_id": None, "video_url": None, "error": None,
     }
 
 

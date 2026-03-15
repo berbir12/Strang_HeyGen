@@ -28,6 +28,7 @@ STRIPE_SECRET_KEY: str = os.environ.get("STRIPE_SECRET_KEY", "")
 STRIPE_WEBHOOK_SECRET: str = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
 STRIPE_PRICE_ID: str = os.environ.get("STRIPE_PRICE_ID", "")
 LANDING_PAGE_URL: str = os.environ.get("LANDING_PAGE_URL", "http://localhost:5173")
+PUBLIC_API_BASE_URL: str = os.environ.get("PUBLIC_API_BASE_URL", "http://localhost:8000")
 
 # --- Free tier ---
 FREE_TIER_VIDEO_LIMIT = int(os.environ.get("FREE_TIER_VIDEO_LIMIT", "3"))
@@ -42,3 +43,5 @@ CORS_ORIGINS: list[str] = (
 
 # --- Model ---
 OPENAI_MODEL: str = os.environ.get("OPENAI_MODEL", "gpt-4.1")
+OPENAI_VIDEO_MODEL: str = os.environ.get("OPENAI_VIDEO_MODEL", "sora-2")
+OPENAI_VIDEO_SIZE: str = os.environ.get("OPENAI_VIDEO_SIZE", "1280x720")
