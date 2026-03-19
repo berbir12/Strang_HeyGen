@@ -50,12 +50,24 @@ class StatusResponse(BaseModel):
 
 class WaitlistRequest(BaseModel):
     email: EmailStr
+    ref: str | None = None  # referral code present in the page URL (?ref=CODE)
 
 
 class WaitlistResponse(BaseModel):
     ok: bool = True
     message: str = "You're on the list!"
+    is_new: bool = True
+    referral_code: str = ""
+    position: int = 0
+    referral_count: int = 0
 
 
 class WaitlistCountResponse(BaseModel):
     count: int
+
+
+class WaitlistPositionResponse(BaseModel):
+    position: int
+    referral_code: str
+    referral_count: int
+    total: int

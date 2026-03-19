@@ -5,6 +5,8 @@ Uses aiosqlite (thin async wrapper around sqlite3).
 """
 
 import json
+import secrets
+import string
 import time
 
 import aiosqlite
@@ -12,6 +14,31 @@ import aiosqlite
 import config
 
 _db_path = config.DB_PATH
+
+
+def _generate_referral_code() -> str:
+    """Generate an 8-character alphanumeric referral code."""
+    alphabet = string.ascii_uppercase + string.digits
+    return "".join(secrets.choice(alphabet) for _ in range(8))
+
+
+async def _ensure_waitlist_referral_columns(db: aiosqlite.Connection) -> None:
+    """Backfill schema for older databases by adding referral columns when missing."""
+    cursor = await db.execute("PRAGMA table_info(waitlist)")
+    cols = await cursor.fetchall()
+    names = {c[1] for c in cols}
+    if "referral_code" not in names:
+        await db.execute(
+            "ALTER TABLE waitlist ADD COLUMN referral_code TEXT"
+        )
+    if "referred_by" not in names:
+        await db.execute(
+            "ALTER TABLE waitlist ADD COLUMN referred_by TEXT"
+        )
+    if "referral_count" not in names:
+        await db.execute(
+            "ALTER TABLE waitlist ADD COLUMN referral_count INTEGER NOT NULL DEFAULT 0"
+        )
 
 
 async def _ensure_jobs_engine_column(db: aiosqlite.Connection) -> None:
@@ -58,11 +85,15 @@ async def init_db() -> None:
         await _ensure_jobs_extension_count_column(db)
         await db.execute("""
             CREATE TABLE IF NOT EXISTS waitlist (
-                id         INTEGER PRIMARY KEY AUTOINCREMENT,
-                email      TEXT NOT NULL UNIQUE COLLATE NOCASE,
-                created_at REAL NOT NULL
+                id             INTEGER PRIMARY KEY AUTOINCREMENT,
+                email          TEXT NOT NULL UNIQUE COLLATE NOCASE,
+                referral_code  TEXT UNIQUE,
+                referred_by    TEXT,
+                referral_count INTEGER NOT NULL DEFAULT 0,
+                created_at     REAL NOT NULL
             )
         """)
+        await _ensure_waitlist_referral_columns(db)
         await db.execute("""
             CREATE TABLE IF NOT EXISTS screenplay_cache (
                 text_hash       TEXT PRIMARY KEY,
@@ -130,18 +161,102 @@ async def update_job(job_id: str, **fields: object) -> None:
 # Waitlist
 # ---------------------------------------------------------------------------
 
-async def add_email(email: str) -> bool:
-    """Add email. Returns True if new, False if already present."""
-    try:
-        async with aiosqlite.connect(str(_db_path)) as db:
-            await db.execute(
-                "INSERT INTO waitlist (email, created_at) VALUES (?, ?)",
-                (email.strip().lower(), time.time()),
+async def get_waitlist_entry(email: str) -> dict | None:
+    """Return a single waitlist row by email, or None."""
+    async with aiosqlite.connect(str(_db_path)) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute(
+            "SELECT * FROM waitlist WHERE email = ? COLLATE NOCASE", (email.strip().lower(),)
+        )
+        row = await cursor.fetchone()
+        return dict(row) if row else None
+
+
+async def get_waitlist_position(email: str) -> int:
+    """Return 1-based queue position ordered by referral_count DESC, created_at ASC."""
+    async with aiosqlite.connect(str(_db_path)) as db:
+        cursor = await db.execute(
+            """
+            SELECT pos FROM (
+                SELECT email,
+                       ROW_NUMBER() OVER (ORDER BY referral_count DESC, created_at ASC) AS pos
+                FROM waitlist
+            ) ranked
+            WHERE email = ? COLLATE NOCASE
+            """,
+            (email.strip().lower(),),
+        )
+        row = await cursor.fetchone()
+        return row[0] if row else 0
+
+
+async def add_email(email: str, referred_by_code: str | None = None) -> dict:
+    """Add email with optional referral code.
+
+    Returns a dict:
+      is_new        – True if this was a fresh signup
+      referral_code – the user's own share code
+      position      – 1-based queue position after insert
+      referral_count – how many referrals this entry has so far
+    """
+    email_clean = email.strip().lower()
+
+    # Return existing entry early (idempotent)
+    existing = await get_waitlist_entry(email_clean)
+    if existing:
+        position = await get_waitlist_position(email_clean)
+        return {
+            "is_new": False,
+            "referral_code": existing.get("referral_code") or "",
+            "position": position,
+            "referral_count": existing.get("referral_count") or 0,
+        }
+
+    referral_code = _generate_referral_code()
+    now = time.time()
+
+    async with aiosqlite.connect(str(_db_path)) as db:
+        # Validate the referrer code and get their row id
+        referrer_id: int | None = None
+        if referred_by_code:
+            cursor = await db.execute(
+                "SELECT id FROM waitlist WHERE referral_code = ? COLLATE NOCASE",
+                (referred_by_code,),
             )
+            row = await cursor.fetchone()
+            if row:
+                referrer_id = row[0]
+
+        try:
+            await db.execute(
+                "INSERT INTO waitlist (email, referral_code, referred_by, created_at) VALUES (?, ?, ?, ?)",
+                (email_clean, referral_code, referred_by_code if referrer_id else None, now),
+            )
+        except aiosqlite.IntegrityError:
+            # Rare race condition — fall back to existing entry
             await db.commit()
-        return True
-    except aiosqlite.IntegrityError:
-        return False
+            existing = await get_waitlist_entry(email_clean)
+            if existing:
+                position = await get_waitlist_position(email_clean)
+                return {
+                    "is_new": False,
+                    "referral_code": existing.get("referral_code") or "",
+                    "position": position,
+                    "referral_count": existing.get("referral_count") or 0,
+                }
+            return {"is_new": False, "referral_code": "", "position": 0, "referral_count": 0}
+
+        # Credit the referrer
+        if referrer_id:
+            await db.execute(
+                "UPDATE waitlist SET referral_count = referral_count + 1 WHERE id = ?",
+                (referrer_id,),
+            )
+
+        await db.commit()
+
+    position = await get_waitlist_position(email_clean)
+    return {"is_new": True, "referral_code": referral_code, "position": position, "referral_count": 0}
 
 
 async def get_waitlist_count() -> int:
