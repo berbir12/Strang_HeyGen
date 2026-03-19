@@ -1,16 +1,11 @@
-import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { Moon, Sun } from "lucide-react";
 import { Link, NavLink } from "react-router-dom";
-
-const installUrl =
-  import.meta.env.VITE_EXTENSION_INSTALL_URL?.trim() || "https://chromewebstore.google.com/";
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   `text-sm font-medium transition-colors ${isActive ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`;
 
 const TopNav = () => {
-  const { user, loading, configured } = useAuth();
   const { resolvedTheme, toggleTheme } = useTheme();
 
   return (
@@ -38,14 +33,6 @@ const TopNav = () => {
           <NavLink to="/pricing" className={navLinkClass}>
             Pricing
           </NavLink>
-          <a
-            href={installUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Install
-          </a>
         </div>
 
         <div className="flex items-center gap-2.5">
@@ -58,31 +45,12 @@ const TopNav = () => {
           >
             {resolvedTheme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </button>
-          {!loading && configured && (
-            user ? (
-              <Link
-                to="/dashboard"
-                className="text-sm font-medium px-4 py-2 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-              >
-                Dashboard
-              </Link>
-            ) : (
-              <>
-                <Link
-                  to="/login"
-                  className="text-sm font-medium px-4 py-2 rounded-full border border-border bg-secondary/80 hover:bg-secondary transition-colors"
-                >
-                  Login
-                </Link>
-                <Link
-                  to="/signup"
-                  className="text-sm font-semibold px-4 py-2 rounded-full bg-primary text-primary-foreground hover:opacity-90 transition-colors"
-                >
-                  Sign Up
-                </Link>
-              </>
-            )
-          )}
+          <a
+            href="#waitlist"
+            className="text-sm font-semibold px-4 py-2 rounded-full bg-primary text-primary-foreground hover:opacity-90 transition-colors"
+          >
+            Join Waitlist
+          </a>
         </div>
       </div>
     </nav>
