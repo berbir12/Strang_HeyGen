@@ -31,11 +31,18 @@ export async function joinWaitlist(
   const body: Record<string, string> = { email: email.trim().toLowerCase() };
   if (refCode) body.ref = refCode;
 
-  const res = await fetch(`${STRANG_API_URL}/waitlist`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${STRANG_API_URL}/waitlist`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    // Most commonly triggered by CORS/preflight failures in production.
+    return { ok: false, message: "Could not reach the waitlist server. Please try again." };
+  }
+
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     return { ok: false, message: data.detail || data.message || "Something went wrong." };

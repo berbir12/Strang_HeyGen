@@ -261,7 +261,10 @@ async def unhandled_exception_handler(_request: Request, exc: Exception):
 app.add_middleware(
     CORSMiddleware,
     allow_origins=config.CORS_ORIGINS,
-    allow_credentials=True,
+    # `Access-Control-Allow-Origin: *` cannot be combined with credentials.
+    # If CORS_ORIGINS is left as "*" we disable credentials so browsers
+    # don't reject the preflight request.
+    allow_credentials=config.CORS_ORIGINS_RAW != "*",
     allow_methods=["*"],
     allow_headers=["*"],
 )
