@@ -24,3 +24,5 @@ landing_page/dist/
 *.swp
 *.swo
 LAUNCH_CHECKLIST.md
+backend/.env.example
+LAUNCH_CHECKLIST.md
