@@ -13,13 +13,14 @@ Architecture:
 import hashlib
 import logging
 import sys
+import time
 import uuid
 
 from contextlib import asynccontextmanager
 
 from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse, Response
 
 import config
 from models.schemas import (
@@ -33,6 +34,15 @@ from models.schemas import (
 )
 from services.heygen_service import heygen_create_video, heygen_get_status
 from services.openai_director import get_screenplay
+from services.openai_video_service import (
+    MAX_EXTENSIONS,
+    choose_extension_segment_seconds,
+    openai_create_video,
+    openai_get_content,
+    openai_get_status,
+    openai_extend_video,
+    target_explainer_seconds,
+)
 from services.stripe_service import (
     create_checkout_session,
     create_portal_session,
@@ -55,6 +65,40 @@ from utils.auth import require_auth
 from utils.rate_limit import rate_limit_check
 
 logger = logging.getLogger("strang")
+
+# ---------------------------------------------------------------------------
+# Provider status cache — avoids hammering OpenAI/HeyGen on every client poll
+# TTL of 10 seconds is safe: short enough to feel responsive, long enough to
+# collapse burst polls from a single job into one external request.
+# ---------------------------------------------------------------------------
+_status_cache: dict[str, tuple[float, dict]] = {}
+_STATUS_CACHE_TTL = 10  # seconds
+
+# HeyGen jobs that stay in "processing" beyond this threshold are force-failed.
+_HEYGEN_TIMEOUT_MINUTES = 15
+
+
+async def _get_cached_provider_status(video_id: str, engine: str) -> dict:
+    """Return cached provider status if fresh, otherwise fetch and cache it."""
+    now = time.monotonic()
+    cached = _status_cache.get(video_id)
+    if cached:
+        ts, result = cached
+        if now - ts < _STATUS_CACHE_TTL:
+            return result
+
+    if engine == "openai":
+        result = await openai_get_status(video_id)
+    else:
+        result = await heygen_get_status(video_id)
+
+    _status_cache[video_id] = (now, result)
+    return result
+
+
+def _evict_status_cache(video_id: str) -> None:
+    """Remove a video from the status cache once its job reaches a terminal state."""
+    _status_cache.pop(video_id, None)
 
 
 # ---------------------------------------------------------------------------
@@ -109,9 +153,15 @@ async def require_subscription(request: Request, user: dict = Depends(require_au
 # Background worker
 # ---------------------------------------------------------------------------
 
-async def process_video_job(job_id: str, text: str, user_id: str | None = None) -> None:
-    """Background task: OpenAI screenplay -> HeyGen video creation."""
+async def process_video_job(
+    job_id: str,
+    text: str,
+    engine: str = "heygen",
+    user_id: str | None = None,
+) -> None:
+    """Background task: OpenAI screenplay -> selected video engine creation."""
     try:
+        selected_engine = engine if engine in ("heygen", "openai") else "heygen"
         text_hash = hashlib.sha256(text.encode()).hexdigest()
         cached = await get_cached_screenplay(text_hash)
 
@@ -123,9 +173,17 @@ async def process_video_job(job_id: str, text: str, user_id: str | None = None) 
             await cache_screenplay(text_hash, screenplay.model_dump_json())
             logger.info("Screenplay generated for job %s", job_id)
 
-        video_id = await heygen_create_video(screenplay)
+        if selected_engine == "openai":
+            video_id = await openai_create_video(screenplay)
+        else:
+            video_id = await heygen_create_video(screenplay)
         await update_job(job_id, video_id=video_id, status="processing")
-        logger.info("HeyGen video queued for job %s (video_id=%s)", job_id, video_id)
+        logger.info(
+            "%s video queued for job %s (video_id=%s)",
+            selected_engine.capitalize(),
+            job_id,
+            video_id,
+        )
 
         if user_id and user_id not in ("admin", "anonymous"):
             await increment_videos_generated(user_id)
@@ -235,17 +293,23 @@ async def generate(
 
     text = req.text.strip()
     job_id = str(uuid.uuid4())
-    await create_job(job_id, input_text=text)
+    engine = (req.engine or "heygen").strip().lower()
+    await create_job(job_id, input_text=text, engine=engine)
 
-    bg.add_task(process_video_job, job_id, text, user.get("user_id"))
-    logger.info("Job %s queued for user %s", job_id, user.get("user_id", client_id))
+    bg.add_task(process_video_job, job_id, text, engine, user.get("user_id"))
+    logger.info(
+        "Job %s queued for user %s using engine=%s",
+        job_id,
+        user.get("user_id", client_id),
+        engine,
+    )
 
     return GenerateResponse(job_id=job_id)
 
 
 @app.get("/generate/status/{job_id}", response_model=StatusResponse)
 async def get_status(job_id: str, _user: dict = Depends(require_auth)):
-    """Poll job status. Fetches live HeyGen status for in-progress jobs."""
+    """Poll job status. Fetches provider status for in-progress jobs."""
     job = await get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -258,20 +322,130 @@ async def get_status(job_id: str, _user: dict = Depends(require_auth)):
         return StatusResponse(status="failed", error=job.get("error"))
 
     video_id = job.get("video_id")
-    if video_id and status == "processing":
-        result = await heygen_get_status(video_id)
-        heygen_status = result.get("status", "pending")
+    engine = (job.get("engine") or "heygen").lower()
 
-        if heygen_status == "completed":
-            url = result.get("video_url")
-            await update_job(job_id, status="completed", video_url=url)
-            return StatusResponse(status="completed", video_url=url)
-        if heygen_status in ("failed", "error"):
-            error = result.get("error", "HeyGen reported failure")
+    if video_id and status == "processing":
+        # ---------------------------------------------------------------
+        # HeyGen timeout guard: fail jobs that have been processing too long
+        # to prevent them hanging indefinitely if HeyGen never responds.
+        # ---------------------------------------------------------------
+        if engine == "heygen":
+            created_at = job.get("created_at")
+            if created_at:
+                try:
+                    job_age_minutes = (time.time() - float(created_at)) / 60
+                    if job_age_minutes > _HEYGEN_TIMEOUT_MINUTES:
+                        error = f"HeyGen job timed out after {_HEYGEN_TIMEOUT_MINUTES} minutes"
+                        logger.warning("Job %s timed out: %s", job_id, error)
+                        await update_job(job_id, status="failed", error=error)
+                        _evict_status_cache(video_id)
+                        return StatusResponse(status="failed", error=error)
+                except (TypeError, ValueError):
+                    pass
+
+        if engine == "openai":
+            provider_name = "OpenAI"
+            provider_failed = ("failed", "error")
+            provider_error_default = "OpenAI reported failure"
+        else:
+            provider_name = "HeyGen"
+            provider_failed = ("failed", "error")
+            provider_error_default = "HeyGen reported failure"
+
+        try:
+            result = await _get_cached_provider_status(video_id, engine)
+            provider_status = result.get("status", "pending")
+        except Exception as exc:
+            error = f"{provider_name} status check failed: {exc}"
+            logger.error("Job %s polling failed: %s", job_id, error)
             await update_job(job_id, status="failed", error=error)
+            _evict_status_cache(video_id)
+            return StatusResponse(status="failed", error=error)
+
+        if provider_status == "completed":
+            if engine == "openai":
+                current_seconds = int(result.get("seconds") or 0)
+                desired_seconds = target_explainer_seconds(job.get("input_text") or "")
+                extension_count = int(job.get("extension_count") or 0)
+
+                # Extend only if we're short AND haven't hit the cost cap.
+                if (
+                    current_seconds > 0
+                    and current_seconds < desired_seconds
+                    and extension_count < MAX_EXTENSIONS
+                ):
+                    extra = choose_extension_segment_seconds(desired_seconds - current_seconds)
+                    continuation_prompt = (
+                        "Continue this educational explainer in the same visual style and pacing. "
+                        "Add meaningful depth, examples, and causal explanation so the topic is fully understood. "
+                        "Ensure narration remains coherent and ends with a complete concluding sentence. "
+                        f"Topic/context to continue: {job.get('input_text') or ''}"
+                    )
+                    next_video_id = await openai_extend_video(video_id, continuation_prompt, extra)
+                    # Persist new video_id and increment extension counter so the
+                    # cap survives server restarts.
+                    await update_job(
+                        job_id,
+                        status="processing",
+                        video_id=next_video_id,
+                        extension_count=extension_count + 1,
+                    )
+                    _evict_status_cache(video_id)
+                    return StatusResponse(status="pending")
+
+                if extension_count >= MAX_EXTENSIONS:
+                    logger.info(
+                        "Job %s reached MAX_EXTENSIONS (%d); accepting current length (%ds)",
+                        job_id,
+                        MAX_EXTENSIONS,
+                        current_seconds,
+                    )
+
+            url = result.get("video_url")
+            if not url:
+                if engine == "openai":
+                    url = f"{config.PUBLIC_API_BASE_URL.rstrip('/')}/generate/content/{job_id}"
+                else:
+                    error = f"{provider_name} completed the job but no video URL was returned."
+                    await update_job(job_id, status="failed", error=error)
+                    _evict_status_cache(video_id)
+                    return StatusResponse(status="failed", error=error)
+
+            await update_job(job_id, status="completed", video_url=url)
+            _evict_status_cache(video_id)
+            return StatusResponse(status="completed", video_url=url)
+
+        if provider_status in provider_failed:
+            error = result.get("error", provider_error_default)
+            await update_job(job_id, status="failed", error=error)
+            _evict_status_cache(video_id)
             return StatusResponse(status="failed", error=error)
 
     return StatusResponse(status="pending")
+
+
+@app.get("/generate/content/{job_id}")
+async def get_generated_video_content(job_id: str):
+    """Serve generated video bytes for providers that don't expose direct public URLs."""
+    job = await get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    if job.get("status") != "completed":
+        raise HTTPException(status_code=409, detail="Video is not ready yet")
+
+    engine = (job.get("engine") or "heygen").lower()
+    if engine == "openai":
+        video_id = job.get("video_id")
+        if not video_id:
+            raise HTTPException(status_code=500, detail="Missing OpenAI video id")
+        media_type, content = await openai_get_content(video_id)
+        return Response(content=content, media_type=media_type)
+
+    video_url = job.get("video_url")
+    if video_url:
+        return RedirectResponse(url=video_url, status_code=307)
+    raise HTTPException(status_code=404, detail="Video URL not found")
 
 
 # ---------------------------------------------------------------------------

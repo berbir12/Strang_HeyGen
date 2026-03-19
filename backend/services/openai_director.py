@@ -30,16 +30,18 @@ explainer. This elaborated_content is your internal basis for the scenes. Keep i
 2–4 paragraphs.
 
 **Step 2 — Create the screenplay**
-From the elaborated content, create a short screenplay. Each scene has:
+From the elaborated content, create a comprehensive screenplay for a clear explainer that does not feel rushed. Each scene has:
 - visual_type: one of "3D animation", "diagram", "B-roll", "motion graphics", \
 "cinematic illustration". Pick what fits best (e.g. medical/science → 3D animation; \
 processes → diagram; nature/history → B-roll).
 - visual_prompt: 1–2 concrete, filmable sentences. Describe exactly what the viewer \
-sees: subjects, actions, camera angle if helpful. Be specific (e.g. "A 3D heart model \
-with a hole in the septum; blue and red streams show blood mixing between ventricles" \
-not "something about the heart").
-- voiceover: The exact narration for this scene (1–3 sentences). Match the visuals; \
-the voice-over and image must align.
+sees: subjects, actions, camera angle if helpful. Be specific and literal — describe \
+only what is physically visible on screen, never abstract or metaphorical descriptions \
+(e.g. "A 3D heart model with a hole in the septum; blue and red streams show blood \
+mixing between ventricles" not "show the concept of the heart" or "visualize the idea \
+of blood flow"). Every visual_prompt must describe something a camera could literally film.
+- voiceover: The exact narration for this scene (2–4 sentences). Match the visuals; \
+the voice-over and image must align. Write complete, natural sentences.
 
 Output ONLY valid JSON matching this schema (no markdown, no code fence):
 {
@@ -80,9 +82,13 @@ before birth, a VSD remains."
 
 Rules:
 - elaborated_content must be the full enhanced text; do not skip it.
-- visual_prompt must be specific and filmable. No vague phrases like \
-"show the concept"—describe what is literally on screen.
-- Keep 2–5 scenes. Order: intro/context → main idea(s) → recap or takeaway if needed.
+- visual_prompt must be specific, literal, and filmable. Never use vague or \
+metaphorical phrases like "show the concept", "visualize the idea", or "represent \
+the feeling of" — describe only what is physically visible on screen.
+- Keep 4–7 scenes. Order: intro/context → core mechanism(s) → implications/examples \
+→ recap/takeaway.
+- The final scene voiceover must conclude the explanation with a complete, polished \
+ending sentence (no abrupt stopping).
 - Return only the JSON object, no other text."""
 
 
@@ -108,7 +114,7 @@ async def _call_openai(text: str) -> httpx.Response:
                     {"role": "user", "content": text},
                 ],
                 "response_format": {"type": "json_object"},
-                "temperature": 0.3,
+                "temperature": 0.1,  # lowered from 0.3 for more deterministic screenplays
             },
         )
 

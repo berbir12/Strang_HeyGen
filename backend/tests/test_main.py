@@ -1,7 +1,9 @@
 """Tests for Strang API: health, waitlist, generate/status, auth (mocked)."""
 
 import json
+import asyncio
 
+import aiosqlite
 import httpx
 import pytest
 import respx
@@ -75,6 +77,137 @@ def test_generate_returns_job_id(client: TestClient, monkeypatch):
     assert "job_id" in data
 
 
+@respx.mock
+def test_generate_openai_engine_polls_openai_status(client: TestClient, monkeypatch):
+    """When engine=openai, status polling should use OpenAI video API path."""
+    respx.post("https://api.openai.com/v1/chat/completions").mock(
+        return_value=httpx.Response(200, json={
+            "choices": [{"message": {"content": json.dumps({
+                "project_title": "OpenAI Test",
+                "elaborated_content": "Test content.",
+                "scenes": [{"visual_prompt": "A cell divides.", "voiceover": "Cell division occurs."}],
+            })}}]
+        })
+    )
+    respx.post("https://api.openai.com/v1/videos").mock(
+        return_value=httpx.Response(200, json={"id": "video_openai_1", "status": "queued"})
+    )
+    respx.get("https://api.openai.com/v1/videos/video_openai_1").mock(
+        return_value=httpx.Response(200, json={
+            "id": "video_openai_1",
+            "status": "completed",
+            "video_url": "https://cdn.example.com/openai-video.mp4",
+        })
+    )
+    monkeypatch.setattr("config.OPENAI_API_KEY", "sk-test")
+    monkeypatch.setattr("config.HEYGEN_API_KEY", "")
+
+    r = client.post("/generate", json={"text": "Mitosis basics.", "engine": "openai"})
+    assert r.status_code == 200
+    job_id = r.json()["job_id"]
+
+    status = client.get(f"/generate/status/{job_id}")
+    assert status.status_code == 200
+    body = status.json()
+    assert body["status"] == "completed"
+    assert body["video_url"] == "https://cdn.example.com/openai-video.mp4"
+
+
+@respx.mock
+def test_generate_openai_engine_falls_back_to_content_proxy_url(client: TestClient, monkeypatch):
+    """If OpenAI returns completed with no direct URL, API should return proxy content URL."""
+    respx.post("https://api.openai.com/v1/chat/completions").mock(
+        return_value=httpx.Response(200, json={
+            "choices": [{"message": {"content": json.dumps({
+                "project_title": "OpenAI Proxy Test",
+                "elaborated_content": "Test content.",
+                "scenes": [{"visual_prompt": "A neuron fires.", "voiceover": "Signals move quickly."}],
+            })}}]
+        })
+    )
+    respx.post("https://api.openai.com/v1/videos").mock(
+        return_value=httpx.Response(200, json={"id": "video_openai_2", "status": "queued"})
+    )
+    respx.get("https://api.openai.com/v1/videos/video_openai_2").mock(
+        return_value=httpx.Response(200, json={
+            "id": "video_openai_2",
+            "status": "completed",
+        })
+    )
+    respx.get("https://api.openai.com/v1/videos/video_openai_2/content").mock(
+        return_value=httpx.Response(200, content=b"fake-mp4", headers={"content-type": "video/mp4"})
+    )
+    monkeypatch.setattr("config.OPENAI_API_KEY", "sk-test")
+    monkeypatch.setattr("config.HEYGEN_API_KEY", "")
+    monkeypatch.setattr("config.PUBLIC_API_BASE_URL", "http://localhost:8000")
+
+    r = client.post("/generate", json={"text": "Neuron firing.", "engine": "openai"})
+    assert r.status_code == 200
+    job_id = r.json()["job_id"]
+
+    status = client.get(f"/generate/status/{job_id}")
+    assert status.status_code == 200
+    body = status.json()
+    assert body["status"] == "completed"
+    assert body["video_url"] == f"http://localhost:8000/generate/content/{job_id}"
+
+    content = client.get(f"/generate/content/{job_id}")
+    assert content.status_code == 200
+    assert content.headers["content-type"].startswith("video/mp4")
+    assert content.content == b"fake-mp4"
+
+
+@respx.mock
+def test_generate_openai_engine_auto_extends_until_target(client: TestClient, monkeypatch):
+    """OpenAI flow should auto-extend short completed clips for explainer length."""
+    respx.post("https://api.openai.com/v1/chat/completions").mock(
+        return_value=httpx.Response(200, json={
+            "choices": [{"message": {"content": json.dumps({
+                "project_title": "Auto Extend",
+                "elaborated_content": "Detailed content.",
+                "scenes": [{"visual_prompt": "A long process.", "voiceover": "Step by step explanation."}],
+            })}}]
+        })
+    )
+    respx.post("https://api.openai.com/v1/videos").mock(
+        return_value=httpx.Response(200, json={"id": "video_openai_3", "status": "queued"})
+    )
+    respx.post("https://api.openai.com/v1/videos/extensions").mock(
+        return_value=httpx.Response(200, json={"id": "video_openai_3_ext", "status": "queued"})
+    )
+    # First status call completes but is too short (4s), second status call is long enough.
+    route = respx.get("https://api.openai.com/v1/videos/video_openai_3")
+    route.side_effect = [
+        httpx.Response(200, json={"id": "video_openai_3", "status": "completed", "seconds": "4"}),
+    ]
+    respx.get("https://api.openai.com/v1/videos/video_openai_3_ext").mock(
+        return_value=httpx.Response(200, json={
+            "id": "video_openai_3_ext",
+            "status": "completed",
+            "seconds": "84",
+            "video_url": "https://cdn.example.com/openai-extended.mp4",
+        })
+    )
+    monkeypatch.setattr("config.OPENAI_API_KEY", "sk-test")
+    monkeypatch.setattr("config.HEYGEN_API_KEY", "")
+
+    # Long text drives the desired target seconds above 4s.
+    long_text = "heart function " * 120
+    r = client.post("/generate", json={"text": long_text, "engine": "openai"})
+    assert r.status_code == 200
+    job_id = r.json()["job_id"]
+
+    first_poll = client.get(f"/generate/status/{job_id}")
+    assert first_poll.status_code == 200
+    assert first_poll.json()["status"] == "pending"
+
+    second_poll = client.get(f"/generate/status/{job_id}")
+    assert second_poll.status_code == 200
+    body = second_poll.json()
+    assert body["status"] == "completed"
+    assert body["video_url"] == "https://cdn.example.com/openai-extended.mp4"
+
+
 def test_generate_no_keys_returns_job(client: TestClient, monkeypatch):
     """With empty keys, generate still returns 200 (background task handles the failure)."""
     monkeypatch.setattr("config.OPENAI_API_KEY", "")
@@ -108,3 +241,35 @@ def test_auth_me_requires_token_when_configured(client: TestClient, monkeypatch)
     monkeypatch.setattr("config.SUPABASE_JWT_SECRET", "test-secret-at-least-32-chars-long!")
     r = client.get("/auth/me")
     assert r.status_code == 401
+
+
+def test_init_db_migrates_jobs_extension_count_column(monkeypatch):
+    """Older jobs tables should be migrated to include extension_count."""
+    import storage.database as db_module
+
+    db_path = db_module._db_path
+    async def _run() -> None:
+        async with aiosqlite.connect(str(db_path)) as db:
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS jobs (
+                    id         TEXT PRIMARY KEY,
+                    status     TEXT NOT NULL DEFAULT 'pending',
+                    video_id   TEXT,
+                    video_url  TEXT,
+                    error      TEXT,
+                    input_text TEXT,
+                    created_at REAL NOT NULL,
+                    updated_at REAL NOT NULL
+                )
+            """)
+            await db.commit()
+
+        await db_module.init_db()
+
+        async with aiosqlite.connect(str(db_path)) as db:
+            cursor = await db.execute("PRAGMA table_info(jobs)")
+            cols = await cursor.fetchall()
+            col_names = {c[1] for c in cols}
+            assert "extension_count" in col_names
+
+    asyncio.run(_run())

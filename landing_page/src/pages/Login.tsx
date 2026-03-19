@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { Loader2, Zap } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 const Login = () => {
@@ -39,7 +39,11 @@ const Login = () => {
       <div className="w-full max-w-sm space-y-8">
         <div className="text-center">
           <Link to="/" className="inline-flex items-center gap-2 mb-6">
-            <Zap className="w-7 h-7 text-primary" />
+            <img
+              src="/strang-logo.png"
+              alt="Strang logo"
+              className="w-10 h-10 rounded-lg border border-border/60 shadow-sm"
+            />
             <span className="font-display text-2xl font-bold">Strang</span>
           </Link>
           <h1 className="font-display text-2xl font-bold">Welcome back</h1>

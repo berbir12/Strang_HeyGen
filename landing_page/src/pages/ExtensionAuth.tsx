@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Loader2, Zap, Check } from "lucide-react";
+import { Loader2, Check } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 /**
@@ -49,7 +49,11 @@ const ExtensionAuth = () => {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4">
       <div className="w-full max-w-sm text-center space-y-6">
-        <Zap className="w-12 h-12 text-primary mx-auto" />
+        <img
+          src="/strang-logo.png"
+          alt="Strang logo"
+          className="w-16 h-16 rounded-xl border border-border/60 shadow-sm mx-auto"
+        />
 
         {sent ? (
           <>

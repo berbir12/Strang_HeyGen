@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { Loader2, Zap } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 const Signup = () => {
@@ -43,7 +43,11 @@ const Signup = () => {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center px-4">
         <div className="w-full max-w-sm text-center space-y-4">
-          <Zap className="w-10 h-10 text-primary mx-auto" />
+          <img
+            src="/strang-logo.png"
+            alt="Strang logo"
+            className="w-14 h-14 rounded-xl border border-border/60 shadow-sm mx-auto"
+          />
           <h1 className="font-display text-2xl font-bold">Check your email</h1>
           <p className="text-muted-foreground">
             We sent a confirmation link to <strong className="text-foreground">{email}</strong>.
@@ -60,7 +64,11 @@ const Signup = () => {
       <div className="w-full max-w-sm space-y-8">
         <div className="text-center">
           <Link to="/" className="inline-flex items-center gap-2 mb-6">
-            <Zap className="w-7 h-7 text-primary" />
+            <img
+              src="/strang-logo.png"
+              alt="Strang logo"
+              className="w-10 h-10 rounded-lg border border-border/60 shadow-sm"
+            />
             <span className="font-display text-2xl font-bold">Strang</span>
           </Link>
           <h1 className="font-display text-2xl font-bold">Create an account</h1>

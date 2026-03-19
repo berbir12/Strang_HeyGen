@@ -20,7 +20,15 @@ const faqs = [
   },
   {
     q: "Do I need to create an account?",
-    a: "For the Chrome extension, you’ll point it at your own backend or our hosted API. Join the waitlist to get early access and updates.",
+    a: "Yes. Create a Strang account to manage usage, billing, and access your dashboard. You can sign up for free and upgrade later.",
+  },
+  {
+    q: "How do I install the extension?",
+    a: "Use the Install Extension button on this page. It opens the Chrome Web Store listing so you can add Strang in one click.",
+  },
+  {
+    q: "What happens after I sign in?",
+    a: "You get access to your dashboard and can start generating videos from highlighted text directly in the extension side panel.",
   },
 ];
 
