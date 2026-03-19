@@ -38,6 +38,43 @@ function setLegacyApiKey(key) {
   } catch (_) {}
 }
 
+function friendlyError(err, context) {
+  if (!err) return 'Something went wrong. Please try again.';
+  const msg = typeof err === 'string' ? err : (err.message || '');
+
+  // Pass through messages we wrote ourselves — they're already user-friendly
+  const ours = [
+    'Session expired',
+    'Free tier limit reached',
+    'Upgrade to Pro',
+    'No selection found',
+    'Cannot access this page',
+    'Select some text',
+    'Text is too long',
+    'log in',
+  ];
+  if (ours.some((s) => msg.includes(s))) return msg;
+
+  // Network / connectivity
+  if (
+    msg.includes('Failed to fetch') ||
+    msg.includes('NetworkError') ||
+    msg.includes('net::') ||
+    msg.includes('Load failed')
+  ) {
+    return "Couldn't reach Strang. Check your connection and try again.";
+  }
+
+  if (context === 'poll') {
+    return 'Lost connection while creating your video. Please try again.';
+  }
+  if (context === 'generate') {
+    return 'Something went wrong while starting generation. Please try again.';
+  }
+
+  return 'Something went wrong. Please try again.';
+}
+
 function progressLabel(status) {
   switch (status) {
     case 'loading':
@@ -190,8 +227,7 @@ export default function App() {
         return;
       }
       if (res.status === 403) {
-        const data = await res.json().catch(() => ({}));
-        setError(data.detail || 'Free tier limit reached. Upgrade to Pro to continue.');
+        setError('Free tier limit reached. Upgrade to Pro to continue.');
         setStatus('error');
         return;
       }
@@ -201,11 +237,11 @@ export default function App() {
       try {
         data = raw ? JSON.parse(raw) : {};
       } catch (_) {
-        throw new Error(res.ok ? 'Invalid response' : (raw || `Error ${res.status}`));
+        throw new Error(res.ok ? 'parse_error' : `http_${res.status}`);
       }
 
       if (!res.ok) {
-        throw new Error(data.detail || data.message || raw || 'Request failed');
+        throw new Error(`http_${res.status}`);
       }
 
       const { job_id } = data;
@@ -231,34 +267,34 @@ export default function App() {
           try {
             pollData = pollRaw ? JSON.parse(pollRaw) : {};
           } catch (_) {
-            setError(pollRaw || 'Invalid response');
+            setError('Something went wrong. Please try again.');
             setStatus('error');
             return;
           }
           if (!pollRes.ok) {
-            setError(pollData.detail || pollData.error || `Status check failed (${pollRes.status})`);
+            setError('Something went wrong while checking your video. Please try again.');
             setStatus('error');
             return;
           }
-          if (pollRes.ok && pollData.status === 'completed' && pollData.video_url) {
+          if (pollData.status === 'completed' && pollData.video_url) {
             setVideoUrl(pollData.video_url);
             setStatus('done');
             return;
           }
           if (pollData.status === 'failed') {
-            setError(pollData.error || 'Video generation failed');
+            setError('Video generation didn\'t complete. Please try again.');
             setStatus('error');
             return;
           }
           setTimeout(poll, 4000);
         } catch (e) {
-          setError(e.message || 'Polling failed');
+          setError(friendlyError(e, 'poll'));
           setStatus('error');
         }
       };
       poll();
     } catch (e) {
-      setError(e.message || 'Failed to start generation');
+      setError(friendlyError(e, 'generate'));
       setStatus('error');
     }
   };

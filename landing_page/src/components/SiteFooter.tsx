@@ -2,9 +2,6 @@ import LiveActivityPopup from "@/components/LiveActivityPopup";
 import { ShieldCheck } from "lucide-react";
 import { Link } from "react-router-dom";
 
-const installUrl =
-  import.meta.env.VITE_EXTENSION_INSTALL_URL?.trim() || "https://chromewebstore.google.com/";
-
 const SiteFooter = () => {
   return (
     <footer className="border-t border-border bg-background/95">
@@ -43,9 +40,6 @@ const SiteFooter = () => {
               <Link to="/pricing" className="block hover:text-primary transition-colors">
                 Pricing
               </Link>
-              <a href={installUrl} target="_blank" rel="noreferrer" className="block hover:text-primary transition-colors">
-                Install extension
-              </a>
             </div>
           </div>
 
@@ -55,12 +49,9 @@ const SiteFooter = () => {
               <Link to="/privacy" className="block hover:text-primary transition-colors">
                 Privacy policy
               </Link>
-              <Link to="/signup" className="block hover:text-primary transition-colors">
-                Sign up
-              </Link>
-              <Link to="/login" className="block hover:text-primary transition-colors">
-                Sign in
-              </Link>
+              <a href="#waitlist" className="block hover:text-primary transition-colors">
+                Join waitlist
+              </a>
             </div>
           </div>
 

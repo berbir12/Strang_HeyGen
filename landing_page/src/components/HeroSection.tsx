@@ -1,8 +1,3 @@
-import { Link } from "react-router-dom";
-
-const installUrl =
-  import.meta.env.VITE_EXTENSION_INSTALL_URL?.trim() || "https://chromewebstore.google.com/";
-
 const HeroSection = () => {
   return (
     <section className="relative overflow-hidden px-4 pt-28 pb-16">
@@ -17,7 +12,7 @@ const HeroSection = () => {
         <div>
           <div className="inline-flex items-center gap-2 glass-card px-4 py-2 mb-6">
             <span className="w-2 h-2 rounded-full bg-primary animate-pulse-glow" />
-            <span className="text-sm text-muted-foreground font-medium">Chrome extension + web dashboard</span>
+            <span className="text-sm text-muted-foreground font-medium">Launching Spring 2026</span>
           </div>
 
           <h1 className="font-display text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight leading-[1.08] mb-5">
@@ -26,26 +21,13 @@ const HeroSection = () => {
           </h1>
 
           <p className="text-lg text-muted-foreground max-w-xl mb-8 leading-relaxed">
-            Strang turns highlighted text into concise videos in your browser side panel. Sign up, install, and learn
-            without switching tabs.
+            Strang turns highlighted text into concise videos in your browser side panel. Join the waitlist to get early access when we launch.
           </p>
 
           <div className="flex flex-wrap items-center gap-3 mb-7">
-            <a href={installUrl} target="_blank" rel="noreferrer" className="glow-button">
-              Install extension
+            <a href="#waitlist" className="glow-button">
+              Join the Waitlist
             </a>
-            <Link
-              to="/signup"
-              className="px-6 py-3 rounded-xl border border-border bg-secondary hover:bg-secondary/80 transition-colors text-sm font-medium"
-            >
-              Create account
-            </Link>
-            <Link
-              to="/login"
-              className="px-6 py-3 rounded-xl border border-border/80 hover:border-primary/40 transition-colors text-sm font-medium"
-            >
-              Sign in
-            </Link>
           </div>
 
           <div className="flex flex-wrap items-center gap-6 text-sm text-muted-foreground">
