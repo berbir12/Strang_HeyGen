@@ -8,20 +8,46 @@ export const STRANG_API_URL =
     ? "http://localhost:8000"
     : "");
 
-export async function joinWaitlist(email: string): Promise<{ ok: boolean; message?: string }> {
+export interface WaitlistResult {
+  ok: boolean;
+  message?: string;
+  is_new?: boolean;
+  referral_code?: string;
+  position?: number;
+  referral_count?: number;
+}
+
+/**
+ * Join the waitlist. Pass the `ref` query param value when present in the URL
+ * so the backend can credit the referrer.
+ */
+export async function joinWaitlist(
+  email: string,
+  refCode?: string | null,
+): Promise<WaitlistResult> {
   if (!STRANG_API_URL) {
     return { ok: false, message: "Waitlist is not configured." };
   }
+  const body: Record<string, string> = { email: email.trim().toLowerCase() };
+  if (refCode) body.ref = refCode;
+
   const res = await fetch(`${STRANG_API_URL}/waitlist`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email: email.trim().toLowerCase() }),
+    body: JSON.stringify(body),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     return { ok: false, message: data.detail || data.message || "Something went wrong." };
   }
-  return { ok: true, message: data.message };
+  return {
+    ok: true,
+    message: data.message,
+    is_new: data.is_new,
+    referral_code: data.referral_code,
+    position: data.position,
+    referral_count: data.referral_count,
+  };
 }
 
 export async function getWaitlistCount(): Promise<number | null> {
@@ -31,6 +57,25 @@ export async function getWaitlistCount(): Promise<number | null> {
     if (!res.ok) return null;
     const data = await res.json();
     return typeof data.count === "number" ? data.count : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function getWaitlistPosition(email: string): Promise<WaitlistResult | null> {
+  if (!STRANG_API_URL) return null;
+  try {
+    const res = await fetch(
+      `${STRANG_API_URL}/waitlist/position?email=${encodeURIComponent(email)}`,
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    return {
+      ok: true,
+      referral_code: data.referral_code,
+      position: data.position,
+      referral_count: data.referral_count,
+    };
   } catch {
     return null;
   }

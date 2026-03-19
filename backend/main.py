@@ -29,6 +29,7 @@ from models.schemas import (
     Screenplay,
     StatusResponse,
     WaitlistCountResponse,
+    WaitlistPositionResponse,
     WaitlistRequest,
     WaitlistResponse,
 )
@@ -57,6 +58,8 @@ from storage.database import (
     get_job,
     get_user,
     get_waitlist_count,
+    get_waitlist_entry,
+    get_waitlist_position,
     increment_videos_generated,
     init_db,
     update_job,
@@ -65,6 +68,39 @@ from utils.auth import require_auth
 from utils.rate_limit import rate_limit_check
 
 logger = logging.getLogger("strang")
+
+
+# ---------------------------------------------------------------------------
+# Discord notification helper
+# ---------------------------------------------------------------------------
+
+async def _notify_discord_waitlist(email: str, position: int, total: int, is_new: bool) -> None:
+    """Fire-and-forget Discord embed on every waitlist signup. Silent on failure."""
+    if not config.DISCORD_WEBHOOK_URL:
+        return
+    try:
+        import httpx
+
+        action = "New Signup" if is_new else "Re-joined"
+        payload = {
+            "embeds": [
+                {
+                    "title": f"Strang Waitlist — {action}!",
+                    "color": 0x6366F1,  # indigo to match the brand
+                    "fields": [
+                        {"name": "Email", "value": email, "inline": True},
+                        {"name": "Queue Position", "value": f"#{position:,}", "inline": True},
+                        {"name": "Total Signups", "value": f"{total:,}", "inline": True},
+                    ],
+                    "footer": {"text": "strang.ai waitlist"},
+                }
+            ]
+        }
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            await client.post(config.DISCORD_WEBHOOK_URL, json=payload)
+    except Exception as exc:
+        logger.warning("Discord notification failed: %s", exc)
+
 
 # ---------------------------------------------------------------------------
 # Provider status cache — avoids hammering OpenAI/HeyGen on every client poll
@@ -453,13 +489,53 @@ async def get_generated_video_content(job_id: str):
 # ---------------------------------------------------------------------------
 
 @app.post("/waitlist", response_model=WaitlistResponse)
-async def waitlist_join(req: WaitlistRequest):
-    """Add email to waitlist. Idempotent."""
-    is_new = await add_email(req.email)
-    if not is_new:
-        return WaitlistResponse(ok=True, message="You're already on the list!")
-    logger.info("Waitlist signup: %s", req.email)
-    return WaitlistResponse()
+async def waitlist_join(req: WaitlistRequest, bg: BackgroundTasks):
+    """Add email to waitlist. Idempotent. Supports referral tracking."""
+    result = await add_email(req.email, referred_by_code=req.ref)
+
+    total = await get_waitlist_count()
+    base = config.LANDING_PAGE_URL_FOR_REFERRAL.rstrip("/")
+    referral_link = f"{base}/?ref={result['referral_code']}" if result["referral_code"] else base
+
+    if result["is_new"]:
+        logger.info(
+            "Waitlist signup: %s (position=%s, referred_by=%s)",
+            req.email,
+            result["position"],
+            req.ref or "—",
+        )
+        bg.add_task(
+            _notify_discord_waitlist,
+            req.email,
+            result["position"],
+            total,
+            True,
+        )
+        return WaitlistResponse(
+            ok=True,
+            message="You're on the list!",
+            is_new=True,
+            referral_code=result["referral_code"],
+            position=result["position"],
+            referral_count=result["referral_count"],
+        )
+
+    # Idempotent re-join: return existing data so the frontend can re-show state
+    bg.add_task(
+        _notify_discord_waitlist,
+        req.email,
+        result["position"],
+        total,
+        False,
+    )
+    return WaitlistResponse(
+        ok=True,
+        message="You're already on the list!",
+        is_new=False,
+        referral_code=result["referral_code"],
+        position=result["position"],
+        referral_count=result["referral_count"],
+    )
 
 
 @app.get("/waitlist/count", response_model=WaitlistCountResponse)
@@ -467,6 +543,22 @@ async def waitlist_count():
     """Return number of waitlist signups."""
     count = await get_waitlist_count()
     return WaitlistCountResponse(count=count)
+
+
+@app.get("/waitlist/position", response_model=WaitlistPositionResponse)
+async def waitlist_position(email: str):
+    """Return queue position and referral stats for an existing waitlist entry."""
+    entry = await get_waitlist_entry(email)
+    if not entry:
+        raise HTTPException(status_code=404, detail="Email not found on waitlist.")
+    position = await get_waitlist_position(email)
+    total = await get_waitlist_count()
+    return WaitlistPositionResponse(
+        position=position,
+        referral_code=entry.get("referral_code") or "",
+        referral_count=entry.get("referral_count") or 0,
+        total=total,
+    )
 
 
 # ---------------------------------------------------------------------------
