@@ -8,6 +8,8 @@ export const STRANG_API_URL =
     ? "http://localhost:8000"
     : "");
 
+const STRANG_API_URL_BASE = STRANG_API_URL.replace(/\/+$/, "");
+
 export interface WaitlistResult {
   ok: boolean;
   message?: string;
@@ -25,7 +27,7 @@ export async function joinWaitlist(
   email: string,
   refCode?: string | null,
 ): Promise<WaitlistResult> {
-  if (!STRANG_API_URL) {
+  if (!STRANG_API_URL_BASE) {
     return { ok: false, message: "Waitlist is not configured." };
   }
   const body: Record<string, string> = { email: email.trim().toLowerCase() };
@@ -33,7 +35,7 @@ export async function joinWaitlist(
 
   let res: Response;
   try {
-    res = await fetch(`${STRANG_API_URL}/waitlist`, {
+    res = await fetch(`${STRANG_API_URL_BASE}/waitlist`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
@@ -58,9 +60,9 @@ export async function joinWaitlist(
 }
 
 export async function getWaitlistCount(): Promise<number | null> {
-  if (!STRANG_API_URL) return null;
+  if (!STRANG_API_URL_BASE) return null;
   try {
-    const res = await fetch(`${STRANG_API_URL}/waitlist/count`);
+    const res = await fetch(`${STRANG_API_URL_BASE}/waitlist/count`);
     if (!res.ok) return null;
     const data = await res.json();
     return typeof data.count === "number" ? data.count : null;
@@ -70,10 +72,10 @@ export async function getWaitlistCount(): Promise<number | null> {
 }
 
 export async function getWaitlistPosition(email: string): Promise<WaitlistResult | null> {
-  if (!STRANG_API_URL) return null;
+  if (!STRANG_API_URL_BASE) return null;
   try {
     const res = await fetch(
-      `${STRANG_API_URL}/waitlist/position?email=${encodeURIComponent(email)}`,
+      `${STRANG_API_URL_BASE}/waitlist/position?email=${encodeURIComponent(email)}`,
     );
     if (!res.ok) return null;
     const data = await res.json();

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Check, Copy, Loader2, Mail, Trophy, Users, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { getWaitlistCount, joinWaitlist, WaitlistResult } from "@/lib/api";
@@ -29,12 +29,12 @@ function referralNudge(referralCount: number): string {
 }
 
 const WaitlistForm = () => {
-  const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [count, setCount] = useState<number | null>(null);
   const [entry, setEntry] = useState<WaitlistResult | null>(null);
+  const emailRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     getWaitlistCount().then(setCount);
@@ -46,11 +46,12 @@ const WaitlistForm = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim()) return;
+    const email = emailRef.current?.value?.trim() || "";
+    if (!email) return;
 
     setLoading(true);
     const refCode = getRefFromUrl();
-    const result = await joinWaitlist(email.trim(), refCode);
+    const result = await joinWaitlist(email, refCode);
     setLoading(false);
 
     if (result.ok) {
@@ -101,11 +102,10 @@ const WaitlistForm = () => {
             <div className="relative flex-1">
               <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
               <input
+                ref={emailRef}
                 type="email"
                 required
                 placeholder="Enter your email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
                 className="w-full pl-12 pr-4 py-4 rounded-xl bg-secondary border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
               />
             </div>

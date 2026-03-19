@@ -258,6 +258,43 @@ async def unhandled_exception_handler(_request: Request, exc: Exception):
     return JSONResponse(status_code=500, content={"detail": detail})
 
 
+# ---------------------------------------------------------------------------
+# Manual CORS hardening
+# ---------------------------------------------------------------------------
+# Some reverse proxies / platforms can interfere with CORSMiddleware headers,
+# which breaks browser preflight. This middleware ensures we always emit
+# the required `Access-Control-Allow-Origin` header (and handle OPTIONS).
+@app.middleware("http")
+async def _manual_cors(request: Request, call_next):
+    origin = request.headers.get("origin")
+    if origin:
+        allow_all = config.CORS_ORIGINS_RAW == "*"
+        origin_allowed = allow_all or origin in config.CORS_ORIGINS
+
+        if origin_allowed:
+            # Preflight requests must return CORS headers with no body.
+            if request.method == "OPTIONS":
+                resp = Response(status_code=204)
+            else:
+                resp = await call_next(request)
+
+            resp.headers["Access-Control-Allow-Origin"] = "*" if allow_all else origin
+            resp.headers["Vary"] = "Origin"
+            resp.headers["Access-Control-Allow-Methods"] = request.headers.get(
+                "access-control-request-method", "*"
+            )
+            resp.headers["Access-Control-Allow-Headers"] = request.headers.get(
+                "access-control-request-headers", "*"
+            )
+            # Only set credentials header when we are not using wildcard origins.
+            if not allow_all:
+                if config.CORS_ORIGINS_RAW != "*":
+                    resp.headers["Access-Control-Allow-Credentials"] = "true"
+            return resp
+
+    return await call_next(request)
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=config.CORS_ORIGINS,
