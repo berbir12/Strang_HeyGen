@@ -2,10 +2,66 @@
 
 import os
 from pathlib import Path
+from urllib.parse import urlparse
 
 from dotenv import load_dotenv
 
 load_dotenv()
+
+
+def _origin_from_public_url(url: str) -> str | None:
+    """Return Origin-style string (scheme://host[:port]) or None."""
+    u = (url or "").strip()
+    if not u:
+        return None
+    p = urlparse(u)
+    if not p.scheme or not p.netloc:
+        return None
+    host = p.netloc.split("@")[-1]
+    return f"{p.scheme}://{host}"
+
+
+def _normalize_cors_entry(entry: str) -> str:
+    """Strip whitespace and trailing slash from an origin (not for chrome-extension)."""
+    e = entry.strip().rstrip("/")
+    return e
+
+
+def _build_cors_allowlist() -> tuple[str, list[str]]:
+    """Env CORS_ORIGINS plus landing URL(s), www/apex variants, deduped."""
+    raw = os.environ.get("CORS_ORIGINS", "*").strip()
+    if raw == "*":
+        return raw, ["*"]
+
+    seen: set[str] = set()
+    out: list[str] = []
+
+    def add(o: str) -> None:
+        o = _normalize_cors_entry(o)
+        if not o or o in seen:
+            return
+        seen.add(o)
+        out.append(o)
+
+    for part in raw.split(","):
+        if part.strip():
+            add(part.strip())
+
+    for base in (
+        os.environ.get("LANDING_PAGE_URL", ""),
+        os.environ.get("LANDING_PAGE_URL_FOR_REFERRAL", ""),
+    ):
+        o = _origin_from_public_url(base)
+        if o:
+            add(o)
+            if "://www." in o:
+                add(o.replace("://www.", "://", 1))
+            elif "://" in o:
+                rest = o.split("://", 1)[1]
+                if not rest.lower().startswith("www."):
+                    add(o.replace("://", "://www.", 1))
+
+    return raw, out
 
 # --- API Keys ---
 OPENAI_API_KEY: str = os.environ.get("OPENAI_API_KEY", "")
@@ -43,12 +99,7 @@ LANDING_PAGE_URL_FOR_REFERRAL: str = os.environ.get(
 FREE_TIER_VIDEO_LIMIT = int(os.environ.get("FREE_TIER_VIDEO_LIMIT", "3"))
 
 # --- CORS ---
-CORS_ORIGINS_RAW = os.environ.get("CORS_ORIGINS", "*").strip()
-CORS_ORIGINS: list[str] = (
-    [o.strip() for o in CORS_ORIGINS_RAW.split(",") if o.strip()]
-    if CORS_ORIGINS_RAW != "*"
-    else ["*"]
-)
+CORS_ORIGINS_RAW, CORS_ORIGINS = _build_cors_allowlist()
 
 # --- Model ---
 OPENAI_MODEL: str = os.environ.get("OPENAI_MODEL", "gpt-4.1")

@@ -269,7 +269,9 @@ async def _manual_cors(request: Request, call_next):
     origin = request.headers.get("origin")
     if origin:
         allow_all = config.CORS_ORIGINS_RAW == "*"
-        origin_allowed = allow_all or origin in config.CORS_ORIGINS
+        # Match with/without trailing slash (browsers send no trailing slash).
+        origin_key = origin.strip().rstrip("/")
+        origin_allowed = allow_all or origin_key in config.CORS_ORIGINS
 
         if origin_allowed:
             # Preflight requests must return CORS headers with no body.
