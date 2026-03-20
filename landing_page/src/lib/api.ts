@@ -8,7 +8,19 @@ export const STRANG_API_URL =
     ? "http://localhost:8000"
     : "");
 
-const STRANG_API_URL_BASE = STRANG_API_URL.replace(/\/+$/, "");
+/** No path, no trailing slash — avoids `//waitlist` when env has a trailing `/`. */
+function strangApiBase(url: string): string {
+  const u = url.trim();
+  if (!u) return "";
+  try {
+    const parsed = new URL(u);
+    return parsed.origin;
+  } catch {
+    return u.replace(/\/+$/, "");
+  }
+}
+
+const STRANG_API_URL_BASE = strangApiBase(STRANG_API_URL);
 
 export interface WaitlistResult {
   ok: boolean;
