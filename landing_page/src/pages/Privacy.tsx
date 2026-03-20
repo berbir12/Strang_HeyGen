@@ -25,7 +25,7 @@ const Privacy = () => {
           <section>
             <h2 className="font-display text-xl font-semibold mb-3">1. Overview</h2>
             <p className="text-muted-foreground leading-relaxed">
-              Strang (&quot;we,&quot; &quot;us,&quot; or &quot;our&quot;) operates the Strang Chrome extension and the strang.ai website (collectively, the &quot;Service&quot;). This Privacy Policy explains what information we collect, why we collect it, how we use it, and your choices. It applies to both the website and the Chrome extension.
+              Strang (&quot;we,&quot; &quot;us,&quot; or &quot;our&quot;) operates the Strang Chrome extension and the thestrang.com website (collectively, the &quot;Service&quot;). This Privacy Policy explains what information we collect, why we collect it, how we use it, and your choices. It applies to both the website and the Chrome extension.
             </p>
           </section>
 
@@ -145,8 +145,8 @@ const Privacy = () => {
             <h2 className="font-display text-xl font-semibold mb-3">9. Contact</h2>
             <p className="text-muted-foreground leading-relaxed">
               Questions about this policy or requests regarding your data:{" "}
-              <a href="mailto:hello@strang.ai" className="text-primary hover:underline">
-                hello@strang.ai
+              <a href="mailto:support@thestrang.com" className="text-primary hover:underline">
+                support@thestrang.com
               </a>
             </p>
           </section>

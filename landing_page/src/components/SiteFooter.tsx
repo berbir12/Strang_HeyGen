@@ -58,8 +58,8 @@ const SiteFooter = () => {
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">Stay in touch</p>
             <div className="space-y-2 text-sm">
-              <a href="mailto:hello@strang.ai" className="block hover:text-primary transition-colors">
-                hello@strang.ai
+              <a href="mailto:support@thestrang.com" className="block hover:text-primary transition-colors">
+                support@thestrang.com
               </a>
               <a href="#" className="block hover:text-primary transition-colors">
                 X (Twitter)
