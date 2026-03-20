@@ -27,8 +27,13 @@ def _normalize_cors_entry(entry: str) -> str:
     return e
 
 
-def _build_cors_allowlist() -> tuple[str, list[str]]:
-    """Env CORS_ORIGINS plus landing URL(s), www/apex variants, deduped."""
+def _build_cors_allowlist(landing_url: str, landing_for_referral: str) -> tuple[str, list[str]]:
+    """Env CORS_ORIGINS plus resolved landing URL(s), www/apex variants, deduped.
+
+    Must use the same resolved ``LANDING_PAGE_URL`` / ``LANDING_PAGE_URL_FOR_REFERRAL``
+    as the rest of the app (not raw ``os.environ``), or localhost-only Railway env
+    skips ``https://www.thestrang.com`` and browsers get no ACAO header.
+    """
     raw = os.environ.get("CORS_ORIGINS", "*").strip()
     if raw == "*":
         return raw, ["*"]
@@ -47,10 +52,7 @@ def _build_cors_allowlist() -> tuple[str, list[str]]:
         if part.strip():
             add(part.strip())
 
-    for base in (
-        os.environ.get("LANDING_PAGE_URL", ""),
-        os.environ.get("LANDING_PAGE_URL_FOR_REFERRAL", ""),
-    ):
+    for base in (landing_url, landing_for_referral):
         o = _origin_from_public_url(base)
         if o:
             add(o)
@@ -110,7 +112,10 @@ LANDING_PAGE_URL_FOR_REFERRAL: str = (
 FREE_TIER_VIDEO_LIMIT = int(os.environ.get("FREE_TIER_VIDEO_LIMIT", "3"))
 
 # --- CORS ---
-CORS_ORIGINS_RAW, CORS_ORIGINS = _build_cors_allowlist()
+CORS_ORIGINS_RAW, CORS_ORIGINS = _build_cors_allowlist(
+    LANDING_PAGE_URL,
+    LANDING_PAGE_URL_FOR_REFERRAL,
+)
 
 # --- Model ---
 OPENAI_MODEL: str = os.environ.get("OPENAI_MODEL", "gpt-4.1")
