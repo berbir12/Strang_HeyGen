@@ -473,6 +473,18 @@ async def get_generated_video_content(job_id: str):
 # Waitlist routes
 # ---------------------------------------------------------------------------
 
+
+@app.get("/waitlist")
+async def waitlist_help():
+    """GET is only for quick checks in the browser. Joining uses POST with JSON."""
+    return {
+        "service": "Strang API",
+        "waitlist_join": "POST JSON { email, ref? } to this same path",
+        "waitlist_count": "GET /waitlist/count",
+        "health": "GET /health",
+    }
+
+
 @app.post("/waitlist", response_model=WaitlistResponse)
 async def waitlist_join(req: WaitlistRequest, bg: BackgroundTasks):
     """Add email to waitlist. Idempotent. Supports referral tracking."""
