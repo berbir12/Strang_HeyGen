@@ -83,7 +83,7 @@ async def _notify_discord_waitlist(email: str, position: int, total: int, is_new
                         {"name": "Queue Position", "value": f"#{position:,}", "inline": True},
                         {"name": "Total Signups", "value": f"{total:,}", "inline": True},
                     ],
-                    "footer": {"text": "strang.ai waitlist"},
+                    "footer": {"text": "thestrang.com waitlist"},
                 }
             ]
         }
