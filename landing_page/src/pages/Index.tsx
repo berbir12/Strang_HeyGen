@@ -7,7 +7,7 @@ import SocialProofSection from "@/components/SocialProofSection";
 import SiteFooter from "@/components/SiteFooter";
 import TestimonialsSection from "@/components/TestimonialsSection";
 import TopNav from "@/components/TopNav";
-import WaitlistForm from "@/components/WaitlistForm";
+// import WaitlistForm from "@/components/WaitlistForm";
 
 const Index = () => {
   return (
@@ -22,7 +22,7 @@ const Index = () => {
         <TestimonialsSection />
         <PricingSection />
         <FAQ />
-        <WaitlistForm />
+        {/* <WaitlistForm /> */}
       </main>
 
       <SiteFooter />

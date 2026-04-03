@@ -3,25 +3,31 @@ import React, { useState, useCallback, useEffect } from 'react';
 const BACKEND_KEY = 'strang_backend_url';
 const BACKEND_KEY_LEGACY = 'ai_video_explainer_backend_url';
 const API_KEY_STORAGE_KEY = 'strang_api_key';
-const DEFAULT_BACKEND = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_STRANG_API_URL) || 'http://localhost:8000';
-const LANDING_URL = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_LANDING_URL) || 'http://localhost:5173';
+const PRODUCTION_BACKEND = 'https://strang-heygen-production.up.railway.app';
+const DEFAULT_BACKEND = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_STRANG_API_URL) || PRODUCTION_BACKEND;
+const LANDING_URL =
+  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_LANDING_URL) || 'https://www.thestrang.com';
 const MAX_CHARS = 3000;
 const SOFT_LIMIT_CHARS = 2500;
+const LOCAL_BACKEND_RE = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/i;
+const IS_DEV_BUILD = typeof import.meta !== 'undefined' && !!import.meta.env?.DEV;
 
 function getBackendUrl() {
   try {
     const stored = localStorage.getItem(BACKEND_KEY) || localStorage.getItem(BACKEND_KEY_LEGACY);
-    return stored || DEFAULT_BACKEND;
+    const normalizedStored = (stored || '').trim().replace(/\/+$/, '');
+    if (!normalizedStored) return DEFAULT_BACKEND;
+
+    // Migrate stale local dev backend values for production users.
+    if (!IS_DEV_BUILD && LOCAL_BACKEND_RE.test(normalizedStored)) {
+      localStorage.removeItem(BACKEND_KEY);
+      localStorage.removeItem(BACKEND_KEY_LEGACY);
+      return DEFAULT_BACKEND;
+    }
+    return normalizedStored;
   } catch {
     return DEFAULT_BACKEND;
   }
-}
-
-function setBackendUrl(url) {
-  try {
-    localStorage.setItem(BACKEND_KEY, url);
-    localStorage.setItem(BACKEND_KEY_LEGACY, url);
-  } catch (_) {}
 }
 
 function getLegacyApiKey() {
@@ -30,12 +36,6 @@ function getLegacyApiKey() {
   } catch {
     return '';
   }
-}
-
-function setLegacyApiKey(key) {
-  try {
-    localStorage.setItem(API_KEY_STORAGE_KEY, key || '');
-  } catch (_) {}
 }
 
 function friendlyError(err, context) {
@@ -117,10 +117,6 @@ export default function App() {
   const [status, setStatus] = useState('idle');
   const [videoUrl, setVideoUrl] = useState(null);
   const [error, setError] = useState(null);
-  const [backendUrl, setBackendUrlState] = useState(getBackendUrl());
-  const [legacyApiKey, setLegacyApiKeyState] = useState(getLegacyApiKey());
-  const [showSettings, setShowSettings] = useState(false);
-
   // Auth state
   const [authToken, setAuthToken] = useState('');
   const [authEmail, setAuthEmail] = useState('');
@@ -187,12 +183,6 @@ export default function App() {
       else setError(null);
     });
   }, []);
-
-  const saveBackend = () => {
-    setBackendUrl(backendUrl);
-    setLegacyApiKey(legacyApiKey);
-    setShowSettings(false);
-  };
 
   const generate = async () => {
     const text = selectedText.trim();
@@ -325,204 +315,208 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground p-4 flex flex-col">
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-lg font-display font-semibold text-primary">Strang</h1>
-        <div className="flex items-center gap-2">
-          {!authLoading && (
-            isLoggedIn ? (
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-                title={authEmail || 'Logged in'}
-              >
-                {authEmail ? authEmail.split('@')[0] : 'Logout'}
-              </button>
-            ) : (
+    <div className="min-h-screen bg-background text-foreground flex flex-col">
+      <div className="h-px w-full shrink-0 bg-gradient-to-r from-transparent via-primary/45 to-transparent" aria-hidden />
+      <div className="p-4 pb-5 flex flex-col flex-1 min-h-0">
+        <header className="flex items-start justify-between gap-3 mb-5">
+          <div className="min-w-0">
+            <h1 className="font-display text-xl font-semibold tracking-tight text-gradient leading-none">
+              Strang
+            </h1>
+            <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              Page text → explainer video
+            </p>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            {!authLoading && (
+              isLoggedIn ? (
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded-md hover:bg-secondary/80"
+                  title={authEmail || 'Logged in'}
+                >
+                  {authEmail ? authEmail.split('@')[0] : 'Logout'}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleLogin}
+                  className="text-xs px-3 py-1.5 rounded-lg bg-primary/12 text-primary hover:bg-primary/20 font-semibold border border-primary/20"
+                >
+                  Login
+                </button>
+              )
+            )}
+          </div>
+        </header>
+
+        <section className="mb-4">
+          <div className="mb-3">
+            <h2 id="strang-explain-heading" className="section-title">What should we explain?</h2>
+            <p className="section-hint mb-0">
+              Paste anything dense or worth summarizing—we turn it into a short talking-head style video.
+            </p>
+          </div>
+          <textarea
+            id="strang-source-text"
+            aria-labelledby="strang-explain-heading"
+            value={selectedText}
+            onChange={handleTextChange}
+            placeholder="Drop text here, or pull a highlight from the page with the link below."
+            className={`w-full min-h-[7.5rem] px-3.5 py-3 rounded-xl bg-secondary/90 border text-foreground text-sm leading-relaxed placeholder:text-muted-foreground/80 resize-none focus:outline-none focus:ring-2 focus:ring-primary/50 ${
+              overHard ? 'border-destructive' : overSoft ? 'border-primary/45' : 'border-border'
+            }`}
+            rows={5}
+          />
+          <div className="mt-2 flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={() => { setError(null); loadSelection(); }}
+              className="text-sm text-primary hover:text-primary/85 font-semibold underline decoration-primary/30 underline-offset-2"
+            >
+              Use selection from page
+            </button>
+            {charCount > 0 && (
+              <span className={`quiet-stat ${overHard ? '!text-destructive' : overSoft ? '!text-primary' : ''}`}>
+                {charCount.toLocaleString()} / {MAX_CHARS.toLocaleString()}
+              </span>
+            )}
+          </div>
+          {overSoft && !overHard && (
+            <p className="mt-2 text-xs text-muted-foreground leading-relaxed border-l-2 border-primary/35 pl-3">
+              Longer passages take a bit more time. Ceiling is {MAX_CHARS.toLocaleString()} characters.
+            </p>
+          )}
+        </section>
+
+        {progressStep && (
+          <div className="mb-3 flex items-stretch gap-3 rounded-xl bg-primary/[0.09] border border-primary/25 overflow-hidden">
+            <div className="w-1 shrink-0 bg-primary/70" aria-hidden />
+            <div className="flex items-center py-2.5 pr-3 min-w-0">
+              <span className="text-sm font-semibold text-foreground tracking-tight">{progressStep}</span>
+            </div>
+          </div>
+        )}
+
+        <button
+          type="button"
+          onClick={generate}
+          disabled={status === 'loading' || status === 'polling' || overHard}
+          className="w-full glow-button disabled:opacity-50 disabled:cursor-not-allowed mb-4"
+        >
+          {status === 'loading' && 'Writing script…'}
+          {status === 'polling' && 'Creating video…'}
+          {(status === 'idle' || status === 'done' || status === 'error') && 'Generate video'}
+        </button>
+
+        {error && (
+          <div className="mb-4 p-4 rounded-xl bg-destructive/15 border border-destructive/35 text-destructive-foreground text-sm space-y-3 leading-relaxed">
+            <p className="font-medium text-foreground/95">{error}</p>
+            {status === 'error' && error.includes('log in') && (
               <button
                 type="button"
                 onClick={handleLogin}
-                className="text-xs px-3 py-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 font-medium transition-colors"
+                className="text-sm font-semibold text-primary hover:text-primary/85 underline decoration-primary/35 underline-offset-2"
               >
-                Login
+                Log in
               </button>
-            )
-          )}
-          <button
-            type="button"
-            onClick={() => setShowSettings(!showSettings)}
-            className="text-muted-foreground hover:text-foreground p-1 rounded-lg transition-colors"
-            title="Settings"
-          >
-            ⚙️
-          </button>
-        </div>
-      </div>
+            )}
+            {status === 'error' && error.includes('Upgrade') && (
+              <button
+                type="button"
+                onClick={() => chrome.tabs.create({ url: `${LANDING_URL}/dashboard` })}
+                className="text-sm font-semibold text-primary hover:text-primary/85 underline decoration-primary/35 underline-offset-2"
+              >
+                Upgrade to Pro
+              </button>
+            )}
+            {status === 'error' && selectedText.trim() && !error.includes('log in') && !error.includes('Upgrade') && (
+              <button
+                type="button"
+                onClick={() => { setError(null); generate(); }}
+                className="text-sm font-semibold text-primary hover:text-primary/85 underline decoration-primary/35 underline-offset-2"
+              >
+                Try again
+              </button>
+            )}
+          </div>
+        )}
 
-      {showSettings && (
-        <div className="mb-4 p-4 glass-card space-y-3">
-          <div>
-            <label className="block text-xs text-muted-foreground mb-2">Backend URL</label>
-            <input
-              type="text"
-              value={backendUrl}
-              onChange={(e) => setBackendUrlState(e.target.value)}
-              className="w-full px-3 py-2.5 rounded-xl bg-secondary border border-border text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-              placeholder="http://localhost:8000"
+        {videoUrl && (
+          <div className="flex-1 min-h-0 flex flex-col glass-card p-3 min-h-[200px]">
+            <div className="flex flex-wrap items-start justify-between gap-2 mb-3">
+              <div>
+                <p className="font-display text-sm font-semibold text-foreground tracking-tight">Your video</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">Ready when you are—share or open full screen.</p>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <button
+                  id="strang-copy-link"
+                  type="button"
+                  onClick={copyVideoLink}
+                  className="text-[11px] font-semibold uppercase tracking-wide px-2.5 py-1.5 rounded-lg bg-secondary border border-border hover:bg-primary/12 text-foreground"
+                >
+                  Copy link
+                </button>
+                <button
+                  type="button"
+                  onClick={openVideoInTab}
+                  className="text-[11px] font-semibold uppercase tracking-wide px-2.5 py-1.5 rounded-lg bg-secondary border border-border hover:bg-primary/12 text-foreground"
+                >
+                  Open tab
+                </button>
+              </div>
+            </div>
+            <video
+              src={videoUrl}
+              controls
+              className="w-full rounded-lg flex-1 min-h-0 border border-border/80 bg-black/40"
+              playsInline
             />
           </div>
-          {!isLoggedIn && (
-            <div>
-              <label className="block text-xs text-muted-foreground mb-2">API key (legacy, optional)</label>
-              <input
-                type="password"
-                value={legacyApiKey}
-                onChange={(e) => setLegacyApiKeyState(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-xl bg-secondary border border-border text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-                placeholder="Leave empty if using Login"
-                autoComplete="off"
-              />
-            </div>
-          )}
-          <button
-            type="button"
-            onClick={saveBackend}
-            className="glow-button text-sm px-4 py-2"
-          >
-            Save
-          </button>
-        </div>
-      )}
+        )}
 
-      <div className="mb-4">
-        <label className="block text-xs text-muted-foreground mb-2">Text to explain (paste or pull from page)</label>
-        <textarea
-          value={selectedText}
-          onChange={handleTextChange}
-          placeholder='Paste text here, or select text on the page and click "Use selection from page"'
-          className={`w-full h-24 px-3 py-2.5 rounded-xl bg-secondary border text-foreground text-sm placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all ${
-            overHard ? 'border-destructive' : overSoft ? 'border-primary/50' : 'border-border'
-          }`}
-          rows={4}
-        />
-        <div className="mt-1 flex items-center justify-between">
-          <button
-            type="button"
-            onClick={() => { setError(null); loadSelection(); }}
-            className="text-sm text-primary hover:text-primary/90 font-medium transition-colors"
-          >
-            Use selection from page
-          </button>
-          {charCount > 0 && (
-            <span className={`text-xs ${overHard ? 'text-destructive' : overSoft ? 'text-primary' : 'text-muted-foreground'}`}>
-              {charCount.toLocaleString()} / {MAX_CHARS.toLocaleString()}
-            </span>
-          )}
-        </div>
-        {overSoft && !overHard && (
-          <p className="mt-1 text-xs text-muted-foreground">Longer text may take longer to process. Max {MAX_CHARS.toLocaleString()} characters.</p>
+        {status === 'polling' && (
+          <p className="text-sm text-muted-foreground mt-3 pl-1 border-l-2 border-muted-foreground/25 leading-relaxed">
+            This usually takes a few minutes. You can keep browsing—this panel will update when it&apos;s ready.
+          </p>
+        )}
+
+        {showEmptyState && (
+          <div className="mt-1 rounded-2xl border border-dashed border-border/90 bg-secondary/25 px-4 py-5 text-center">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground mb-3">Quick start</p>
+            <ul className="text-sm text-muted-foreground text-left space-y-2.5 max-w-[32ch] mx-auto leading-relaxed">
+              {isLoggedIn ? (
+                <>
+                  <li className="flex gap-2">
+                    <span className="font-display font-semibold text-primary shrink-0 w-5">1</span>
+                    <span>Highlight text on the page <span className="text-foreground/90 font-medium">or</span> paste into the box.</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="font-display font-semibold text-primary shrink-0 w-5">2</span>
+                    <span>Press <span className="text-foreground font-semibold">Generate video</span> and let Strang work.</span>
+                  </li>
+                </>
+              ) : (
+                <>
+                  <li className="flex gap-2">
+                    <span className="font-display font-semibold text-primary shrink-0 w-5">1</span>
+                    <span>
+                      <button type="button" onClick={handleLogin} className="text-primary font-semibold underline decoration-primary/35 underline-offset-2">Log in</button>
+                      {' '}to use your account.
+                    </span>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="font-display font-semibold text-primary shrink-0 w-5">2</span>
+                    <span>Paste text above, then hit <span className="text-foreground font-semibold">Generate video</span>.</span>
+                  </li>
+                </>
+              )}
+            </ul>
+          </div>
         )}
       </div>
-
-      {progressStep && (
-        <div className="mb-3 flex items-center gap-2 rounded-xl bg-primary/10 border border-primary/20 px-3 py-2">
-          <span className="inline-block h-2 w-2 rounded-full bg-primary animate-pulse" />
-          <span className="text-sm font-medium text-foreground">{progressStep}</span>
-        </div>
-      )}
-
-      <button
-        type="button"
-        onClick={generate}
-        disabled={status === 'loading' || status === 'polling' || overHard}
-        className="w-full glow-button disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 mb-4"
-      >
-        {status === 'loading' && 'Writing script…'}
-        {status === 'polling' && 'Creating video…'}
-        {(status === 'idle' || status === 'done' || status === 'error') && 'Generate video'}
-      </button>
-
-      {error && (
-        <div className="mb-4 p-3 rounded-xl bg-destructive/20 border border-destructive/30 text-destructive-foreground text-sm space-y-2">
-          <p>{error}</p>
-          {status === 'error' && error.includes('log in') && (
-            <button
-              type="button"
-              onClick={handleLogin}
-              className="text-sm font-medium text-primary hover:text-primary/90"
-            >
-              Log in
-            </button>
-          )}
-          {status === 'error' && error.includes('Upgrade') && (
-            <button
-              type="button"
-              onClick={() => chrome.tabs.create({ url: `${LANDING_URL}/dashboard` })}
-              className="text-sm font-medium text-primary hover:text-primary/90"
-            >
-              Upgrade to Pro
-            </button>
-          )}
-          {status === 'error' && selectedText.trim() && !error.includes('log in') && !error.includes('Upgrade') && (
-            <button
-              type="button"
-              onClick={() => { setError(null); generate(); }}
-              className="text-sm font-medium text-primary hover:text-primary/90"
-            >
-              Try again
-            </button>
-          )}
-        </div>
-      )}
-
-      {videoUrl && (
-        <div className="flex-1 min-h-0 flex flex-col rounded-xl overflow-hidden bg-card border border-border">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-xs text-muted-foreground">Your explainer video</p>
-            <div className="flex items-center gap-1">
-              <button
-                id="strang-copy-link"
-                type="button"
-                onClick={copyVideoLink}
-                className="text-xs px-2 py-1 rounded-lg bg-secondary border border-border hover:bg-primary/10 text-foreground transition-colors"
-              >
-                Copy link
-              </button>
-              <button
-                type="button"
-                onClick={openVideoInTab}
-                className="text-xs px-2 py-1 rounded-lg bg-secondary border border-border hover:bg-primary/10 text-foreground transition-colors"
-              >
-                Open in new tab
-              </button>
-            </div>
-          </div>
-          <video
-            src={videoUrl}
-            controls
-            className="w-full rounded-lg flex-1 min-h-0"
-            playsInline
-          />
-        </div>
-      )}
-
-      {status === 'polling' && (
-        <p className="text-sm text-muted-foreground mt-2">This may take a few minutes. You can keep using the tab.</p>
-      )}
-
-      {showEmptyState && (
-        <p className="text-sm text-muted-foreground text-center py-6">
-          {isLoggedIn ? (
-            <>Highlight text on the page or paste above, then click <strong className="text-foreground">Generate video</strong>.</>
-          ) : (
-            <>
-              <button onClick={handleLogin} className="text-primary hover:underline font-medium">Log in</button>
-              {' '}to get started, or paste text above and click <strong className="text-foreground">Generate video</strong>.
-            </>
-          )}
-        </p>
-      )}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400..800;1,400..800&family=Syne:wght@400..800&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -52,22 +52,39 @@
     margin: 0;
     min-width: 380px;
     min-height: 400px;
+    font-size: 15px;
+    line-height: 1.55;
+    letter-spacing: -0.011em;
+    background-image:
+      radial-gradient(ellipse 120% 80% at 50% -40%, hsl(var(--primary) / 0.12), transparent 55%),
+      radial-gradient(ellipse 80% 50% at 100% 100%, hsl(var(--primary) / 0.06), transparent 45%);
   }
 }
 
 @layer utilities {
   .glass-card {
-    @apply bg-card/60 backdrop-blur-xl border border-glass-border rounded-2xl;
+    @apply bg-card/70 backdrop-blur-xl border border-glass-border rounded-2xl shadow-[0_1px_0_0_hsl(var(--glass-border))];
   }
 
   .glow-button {
-    @apply bg-primary text-primary-foreground font-semibold rounded-xl px-6 py-3
-           shadow-[0_0_30px_hsl(var(--glow-primary)/0.4)]
-           hover:shadow-[0_0_50px_hsl(var(--glow-primary)/0.6)]
-           transition-all duration-300 hover:scale-[1.02];
+    @apply bg-primary text-primary-foreground font-semibold rounded-xl px-6 py-3 tracking-tight
+           shadow-[0_0_28px_hsl(var(--glow-primary)/0.38)]
+           border border-primary/25;
   }
 
   .text-gradient {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-[hsl(265,90%,75%)] to-[hsl(290,90%,75%)];
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-[hsl(265,90%,78%)] to-[hsl(292,88%,72%)];
+  }
+
+  .section-title {
+    @apply font-display text-sm font-semibold tracking-tight text-foreground mb-0.5;
+  }
+
+  .section-hint {
+    @apply text-xs text-muted-foreground leading-relaxed mb-3 max-w-[32ch];
+  }
+
+  .quiet-stat {
+    @apply text-[11px] font-medium tabular-nums text-muted-foreground;
   }
 }

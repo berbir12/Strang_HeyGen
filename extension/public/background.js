@@ -2,7 +2,7 @@
  * Service worker: opens side panel, forwards selection, handles auth token storage.
  */
 
-const DEFAULT_BACKEND = 'http://localhost:8000';
+const DEFAULT_BACKEND = 'https://strang-heygen-production.up.railway.app';
 
 if (chrome.sidePanel && chrome.sidePanel.setPanelBehavior) {
   try {
