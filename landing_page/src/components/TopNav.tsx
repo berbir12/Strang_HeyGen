@@ -45,12 +45,19 @@ const TopNav = () => {
           >
             {resolvedTheme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </button>
-          <a
-            href="#waitlist"
+          <Link
+            to="/login"
+            className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Sign in
+          </Link>
+          <Link
+            to="/signup"
             className="text-sm font-semibold px-4 py-2 rounded-full bg-primary text-primary-foreground hover:opacity-90 transition-colors"
           >
-            Join Waitlist
-          </a>
+            Get Started
+          </Link>
+          {/* <a href="#waitlist" className="text-sm font-semibold px-4 py-2 rounded-full bg-primary text-primary-foreground hover:opacity-90 transition-colors">Join Waitlist</a> */}
         </div>
       </div>
     </nav>

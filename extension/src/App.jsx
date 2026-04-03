@@ -3,16 +3,28 @@ import React, { useState, useCallback, useEffect } from 'react';
 const BACKEND_KEY = 'strang_backend_url';
 const BACKEND_KEY_LEGACY = 'ai_video_explainer_backend_url';
 const API_KEY_STORAGE_KEY = 'strang_api_key';
-const DEFAULT_BACKEND = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_STRANG_API_URL) || 'http://localhost:8000';
+const PRODUCTION_BACKEND = 'https://strang-heygen-production.up.railway.app';
+const DEFAULT_BACKEND = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_STRANG_API_URL) || PRODUCTION_BACKEND;
 const LANDING_URL =
   (typeof import.meta !== 'undefined' && import.meta.env?.VITE_LANDING_URL) || 'https://www.thestrang.com';
 const MAX_CHARS = 3000;
 const SOFT_LIMIT_CHARS = 2500;
+const LOCAL_BACKEND_RE = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/i;
+const IS_DEV_BUILD = typeof import.meta !== 'undefined' && !!import.meta.env?.DEV;
 
 function getBackendUrl() {
   try {
     const stored = localStorage.getItem(BACKEND_KEY) || localStorage.getItem(BACKEND_KEY_LEGACY);
-    return stored || DEFAULT_BACKEND;
+    const normalizedStored = (stored || '').trim().replace(/\/+$/, '');
+    if (!normalizedStored) return DEFAULT_BACKEND;
+
+    // Migrate stale local dev backend values for production users.
+    if (!IS_DEV_BUILD && LOCAL_BACKEND_RE.test(normalizedStored)) {
+      localStorage.removeItem(BACKEND_KEY);
+      localStorage.removeItem(BACKEND_KEY_LEGACY);
+      return DEFAULT_BACKEND;
+    }
+    return normalizedStored;
   } catch {
     return DEFAULT_BACKEND;
   }

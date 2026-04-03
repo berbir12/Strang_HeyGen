@@ -12,8 +12,12 @@ const HeroSection = () => {
         <div>
           <div className="inline-flex items-center gap-2 glass-card px-4 py-2 mb-6">
             <span className="w-2 h-2 rounded-full bg-primary animate-pulse-glow" />
-            <span className="text-sm text-muted-foreground font-medium">Launching Spring 2026</span>
+            <span className="text-sm text-muted-foreground font-medium">Now live</span>
           </div>
+          {/* <div className="inline-flex items-center gap-2 glass-card px-4 py-2 mb-6">
+            <span className="w-2 h-2 rounded-full bg-primary animate-pulse-glow" />
+            <span className="text-sm text-muted-foreground font-medium">Launching Spring 2026</span>
+          </div> */}
 
           <h1 className="font-display text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight leading-[1.08] mb-5">
             Understand any topic faster with{" "}
@@ -21,13 +25,18 @@ const HeroSection = () => {
           </h1>
 
           <p className="text-lg text-muted-foreground max-w-xl mb-8 leading-relaxed">
-            Strang turns highlighted text into concise videos in your browser side panel. Join the waitlist to get early access when we launch.
+            Strang turns highlighted text into concise videos in your browser side panel.
+            {/* Join the waitlist to get early access when we launch. */}
           </p>
 
           <div className="flex flex-wrap items-center gap-3 mb-7">
-            <a href="#waitlist" className="glow-button">
-              Join the Waitlist
+            <a href="/signup" className="glow-button">
+              Get Started Free
             </a>
+            <a href="/login" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+              Sign in →
+            </a>
+            {/* <a href="#waitlist" className="glow-button">Join the Waitlist</a> */}
           </div>
 
           <div className="flex flex-wrap items-center gap-6 text-sm text-muted-foreground">
