@@ -312,6 +312,47 @@ async def auth_me(user: dict = Depends(require_auth)):
     }
 
 
+@app.post("/auth/refresh")
+async def refresh_token(request: Request):
+    """Exchange a Supabase refresh token for a new access token.
+
+    Called by the Chrome extension when the access token has expired (401).
+    Proxies to Supabase so the extension never needs to embed Supabase credentials.
+    """
+    if not config.SUPABASE_URL or not config.SUPABASE_ANON_KEY:
+        raise HTTPException(status_code=501, detail="Token refresh not configured on this server.")
+
+    body = await request.json()
+    rt = (body or {}).get("refresh_token", "").strip()
+    if not rt:
+        raise HTTPException(status_code=400, detail="refresh_token is required.")
+
+    import httpx
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            res = await client.post(
+                f"{config.SUPABASE_URL}/auth/v1/token?grant_type=refresh_token",
+                headers={
+                    "apikey": config.SUPABASE_ANON_KEY,
+                    "Content-Type": "application/json",
+                },
+                json={"refresh_token": rt},
+            )
+    except Exception as exc:
+        logger.warning("Token refresh network error: %s", exc)
+        raise HTTPException(status_code=502, detail="Could not reach auth server.")
+
+    if not res.is_success:
+        raise HTTPException(status_code=401, detail="Session expired. Please log in again.")
+
+    data = res.json()
+    return {
+        "access_token": data.get("access_token", ""),
+        "refresh_token": data.get("refresh_token", rt),
+    }
+
+
 # ---------------------------------------------------------------------------
 # Stripe routes
 # ---------------------------------------------------------------------------

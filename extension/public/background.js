@@ -82,5 +82,51 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  // Silently refresh Supabase access token via the backend proxy.
+  // Returns { ok: true, access_token, refresh_token } on success, { ok: false } on failure.
+  if (message.action === 'REFRESH_AUTH_TOKEN') {
+    chrome.storage.local.get(
+      ['strang_refresh_token', 'strang_email'],
+      async (result) => {
+        const refreshToken = result.strang_refresh_token;
+        if (!refreshToken) {
+          sendResponse({ ok: false });
+          return;
+        }
+        const backend = message.backend || DEFAULT_BACKEND;
+        try {
+          const res = await fetch(`${backend}/auth/refresh`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refresh_token: refreshToken }),
+          });
+          if (!res.ok) {
+            sendResponse({ ok: false });
+            return;
+          }
+          const data = await res.json();
+          if (!data.access_token) {
+            sendResponse({ ok: false });
+            return;
+          }
+          chrome.storage.local.set({
+            strang_access_token: data.access_token,
+            strang_refresh_token: data.refresh_token || refreshToken,
+          }, () => {
+            sendResponse({
+              ok: true,
+              access_token: data.access_token,
+              refresh_token: data.refresh_token || refreshToken,
+              email: result.strang_email || '',
+            });
+          });
+        } catch (_e) {
+          sendResponse({ ok: false });
+        }
+      }
+    );
+    return true;
+  }
+
   return false;
 });
