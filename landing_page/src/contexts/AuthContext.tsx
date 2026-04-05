@@ -5,9 +5,11 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { Session, User } from "@supabase/supabase-js";
+import type { Provider, Session, User } from "@supabase/supabase-js";
 import { supabase, isAuthConfigured } from "@/lib/supabase";
 import { STRANG_API_URL } from "@/lib/api";
+
+const SITE_URL = "https://www.thestrang.com";
 
 interface UserProfile {
   plan: string;
@@ -24,6 +26,7 @@ interface AuthState {
   configured: boolean;
   signUp: (email: string, password: string) => Promise<string | null>;
   signIn: (email: string, password: string) => Promise<string | null>;
+  signInWithOAuth: (provider: Provider, redirectTo?: string) => Promise<string | null>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -78,7 +81,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUp = async (email: string, password: string) => {
     if (!supabase) return "Auth is not configured.";
-    const { error } = await supabase.auth.signUp({ email, password });
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: `${SITE_URL}/login`,
+      },
+    });
     return error?.message ?? null;
   };
 
@@ -87,6 +96,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
+    });
+    return error?.message ?? null;
+  };
+
+  const signInWithOAuth = async (provider: Provider, redirectTo?: string) => {
+    if (!supabase) return "Auth is not configured.";
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo: redirectTo ?? `${SITE_URL}/dashboard`,
+      },
     });
     return error?.message ?? null;
   };
@@ -114,6 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         configured: isAuthConfigured,
         signUp,
         signIn,
+        signInWithOAuth,
         signOut,
         refreshProfile,
       }}

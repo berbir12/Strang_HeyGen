@@ -112,6 +112,22 @@ function clearAuthToken() {
   });
 }
 
+function refreshAuthToken(backend) {
+  return new Promise((resolve) => {
+    try {
+      chrome.runtime.sendMessage({ action: 'REFRESH_AUTH_TOKEN', backend }, (res) => {
+        if (chrome.runtime.lastError) {
+          resolve({ ok: false });
+          return;
+        }
+        resolve(res || { ok: false });
+      });
+    } catch {
+      resolve({ ok: false });
+    }
+  });
+}
+
 export default function App() {
   const [selectedText, setSelectedText] = useState('');
   const [status, setStatus] = useState('idle');
@@ -199,12 +215,38 @@ export default function App() {
     setStatus('loading');
     setVideoUrl(null);
 
+    // Build headers using a given token, falling back to state/legacy key.
+    const headersFor = (overrideToken) => {
+      const h = { 'Content-Type': 'application/json' };
+      const tok = overrideToken ?? authToken;
+      if (tok) {
+        h['Authorization'] = `Bearer ${tok}`;
+      } else {
+        const key = getLegacyApiKey();
+        if (key) h['X-API-Key'] = key;
+      }
+      return h;
+    };
+
     try {
-      const res = await fetch(`${base}/generate`, {
+      let res = await fetch(`${base}/generate`, {
         method: 'POST',
-        headers: authHeaders(),
+        headers: headersFor(),
         body: JSON.stringify({ text }),
       });
+
+      // Silently try to refresh the token once before giving up.
+      if (res.status === 401) {
+        const refreshed = await refreshAuthToken(base);
+        if (refreshed.ok && refreshed.access_token) {
+          setAuthToken(refreshed.access_token);
+          res = await fetch(`${base}/generate`, {
+            method: 'POST',
+            headers: headersFor(refreshed.access_token),
+            body: JSON.stringify({ text }),
+          });
+        }
+      }
 
       if (res.status === 401) {
         setError('Session expired. Please log in again.');
@@ -239,13 +281,23 @@ export default function App() {
       }
 
       setStatus('polling');
-      const poll = async () => {
+      const poll = async (currentToken) => {
         try {
-          const pollRes = await fetch(`${base}/generate/status/${job_id}`, { headers: authHeaders() });
+          let pollRes = await fetch(`${base}/generate/status/${job_id}`, { headers: headersFor(currentToken) });
+
+          if (pollRes.status === 401) {
+            const refreshed = await refreshAuthToken(base);
+            if (refreshed.ok && refreshed.access_token) {
+              setAuthToken(refreshed.access_token);
+              pollRes = await fetch(`${base}/generate/status/${job_id}`, { headers: headersFor(refreshed.access_token) });
+            }
+          }
 
           if (pollRes.status === 401) {
             setError('Session expired. Please log in again.');
             setStatus('error');
+            await clearAuthToken();
+            setAuthToken('');
             return;
           }
 
@@ -273,13 +325,13 @@ export default function App() {
             setStatus('error');
             return;
           }
-          setTimeout(poll, 4000);
+          setTimeout(() => poll(currentToken), 4000);
         } catch (e) {
           setError(friendlyError(e, 'poll'));
           setStatus('error');
         }
       };
-      poll();
+      poll(null);
     } catch (e) {
       setError(friendlyError(e, 'generate'));
       setStatus('error');

@@ -80,6 +80,8 @@ RATE_LIMIT_WINDOW_SEC = int(os.environ.get("RATE_LIMIT_WINDOW_SEC", "3600"))
 # --- Auth (legacy static key + Supabase JWT) ---
 STRANG_API_KEY: str = os.environ.get("STRANG_API_KEY", "").strip()
 SUPABASE_JWT_SECRET: str = os.environ.get("SUPABASE_JWT_SECRET", "")
+SUPABASE_URL: str = os.environ.get("SUPABASE_URL", "").strip().rstrip("/")
+SUPABASE_ANON_KEY: str = os.environ.get("SUPABASE_ANON_KEY", "").strip()
 
 # --- Stripe ---
 STRIPE_SECRET_KEY: str = os.environ.get("STRIPE_SECRET_KEY", "")
