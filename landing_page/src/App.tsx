@@ -15,6 +15,8 @@ import ReviewsPage from "./pages/ReviewsPage";
 import PricingPage from "./pages/PricingPage";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import ExtensionAuth from "./pages/ExtensionAuth";
 
@@ -39,6 +41,8 @@ const App = () => (
               {/* Auth routes */}
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/extension-auth" element={<ExtensionAuth />} />
               {/* Auth routes redirect to waitlist until launch */}
