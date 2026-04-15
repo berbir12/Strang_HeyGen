@@ -27,6 +27,8 @@ interface AuthState {
   signUp: (email: string, password: string) => Promise<string | null>;
   signIn: (email: string, password: string) => Promise<string | null>;
   signInWithOAuth: (provider: Provider, redirectTo?: string) => Promise<string | null>;
+  requestPasswordReset: (email: string) => Promise<string | null>;
+  updatePassword: (password: string) => Promise<string | null>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -111,6 +113,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return error?.message ?? null;
   };
 
+  const requestPasswordReset = async (email: string) => {
+    if (!supabase) return "Auth is not configured.";
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${SITE_URL}/reset-password`,
+    });
+    return error?.message ?? null;
+  };
+
+  const updatePassword = async (password: string) => {
+    if (!supabase) return "Auth is not configured.";
+    const { error } = await supabase.auth.updateUser({ password });
+    return error?.message ?? null;
+  };
+
   const signOut = async () => {
     await supabase?.auth.signOut();
     setSession(null);
@@ -135,6 +151,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signUp,
         signIn,
         signInWithOAuth,
+        requestPasswordReset,
+        updatePassword,
         signOut,
         refreshProfile,
       }}

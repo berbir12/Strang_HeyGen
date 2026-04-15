@@ -183,6 +183,15 @@ const Login = () => {
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Sign in"}
           </span>
         </button>
+
+        <div className="text-right">
+          <Link
+            to="/forgot-password"
+            className="text-xs font-medium text-white/60 transition-colors hover:text-purple-200"
+          >
+            Forgot password?
+          </Link>
+        </div>
       </form>
 
       <p className="mt-6 text-center text-sm text-white/60">
