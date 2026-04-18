@@ -9,7 +9,9 @@ import type { Provider, Session, User } from "@supabase/supabase-js";
 import { supabase, isAuthConfigured } from "@/lib/supabase";
 import { STRANG_API_URL } from "@/lib/api";
 
-const SITE_URL = "https://www.thestrang.com";
+const SITE_URL =
+  import.meta.env.VITE_SITE_URL?.trim() ||
+  (typeof window !== "undefined" ? window.location.origin : "https://www.thestrang.com");
 
 interface UserProfile {
   plan: string;

@@ -3,6 +3,7 @@
  */
 
 const DEFAULT_BACKEND = 'https://strang-heygen-production.up.railway.app';
+const BACKEND_KEY = 'strang_backend_url';
 
 if (chrome.sidePanel && chrome.sidePanel.setPanelBehavior) {
   try {
@@ -48,11 +49,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   // Auth token received from content script (bridged from landing page)
   if (message.action === 'SET_AUTH_TOKEN') {
-    chrome.storage.local.set({
+    const nextState = {
       strang_access_token: message.access_token,
       strang_refresh_token: message.refresh_token || '',
       strang_email: message.email || '',
-    }, () => {
+    };
+    const backendUrl = String(message.backend_url || '').trim().replace(/\/+$/, '');
+    if (backendUrl) {
+      nextState[BACKEND_KEY] = backendUrl;
+    }
+    chrome.storage.local.set(nextState, () => {
       sendResponse({ ok: true });
     });
     return true;

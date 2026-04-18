@@ -30,6 +30,7 @@
         access_token: event.data.access_token,
         refresh_token: event.data.refresh_token || '',
         email: event.data.email || '',
+        backend_url: event.data.backend_url || '',
       });
     }
   });

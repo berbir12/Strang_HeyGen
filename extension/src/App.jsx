@@ -30,6 +30,16 @@ function getBackendUrl() {
   }
 }
 
+function setBackendUrl(url) {
+  try {
+    const normalized = (url || '').trim().replace(/\/+$/, '');
+    if (!normalized) return;
+    localStorage.setItem(BACKEND_KEY, normalized);
+  } catch {
+    // Ignore storage failures and keep in-memory flow working.
+  }
+}
+
 function getLegacyApiKey() {
   try {
     return localStorage.getItem(API_KEY_STORAGE_KEY) || '';
@@ -210,7 +220,7 @@ export default function App() {
       setError(`Text is too long. Please use ${MAX_CHARS.toLocaleString()} characters or less.`);
       return;
     }
-    const base = getBackendUrl();
+    let base = getBackendUrl();
     setError(null);
     setStatus('loading');
     setVideoUrl(null);
@@ -245,6 +255,34 @@ export default function App() {
             headers: headersFor(refreshed.access_token),
             body: JSON.stringify({ text }),
           });
+        }
+      }
+
+      // If custom/stale backend auth fails, retry once against production backend.
+      if (res.status === 401 && base !== DEFAULT_BACKEND) {
+        const fallbackBase = DEFAULT_BACKEND;
+        let fallbackRes = await fetch(`${fallbackBase}/generate`, {
+          method: 'POST',
+          headers: headersFor(),
+          body: JSON.stringify({ text }),
+        });
+
+        if (fallbackRes.status === 401) {
+          const refreshed = await refreshAuthToken(fallbackBase);
+          if (refreshed.ok && refreshed.access_token) {
+            setAuthToken(refreshed.access_token);
+            fallbackRes = await fetch(`${fallbackBase}/generate`, {
+              method: 'POST',
+              headers: headersFor(refreshed.access_token),
+              body: JSON.stringify({ text }),
+            });
+          }
+        }
+
+        if (fallbackRes.status !== 401) {
+          base = fallbackBase;
+          setBackendUrl(fallbackBase);
+          res = fallbackRes;
         }
       }
 
