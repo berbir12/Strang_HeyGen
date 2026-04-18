@@ -138,6 +138,39 @@ function refreshAuthToken(backend) {
   });
 }
 
+function getBackendLabel(base) {
+  try {
+    return new URL(base).host;
+  } catch {
+    return base || 'configured backend';
+  }
+}
+
+async function readErrorDetail(res) {
+  try {
+    const data = await res.clone().json();
+    return String(data?.detail || data?.message || '').trim();
+  } catch {
+    return '';
+  }
+}
+
+function shouldClearAuthOn401(detail) {
+  const normalized = String(detail || '').toLowerCase();
+  return normalized.includes('expired');
+}
+
+function auth401Message(detail, base) {
+  if (shouldClearAuthOn401(detail)) {
+    return 'Session expired. Please log in again.';
+  }
+  const backend = getBackendLabel(base);
+  if (detail) {
+    return `Auth failed on ${backend}: ${detail}`;
+  }
+  return `Auth failed on ${backend}. Please reconnect your extension account.`;
+}
+
 export default function App() {
   const [selectedText, setSelectedText] = useState('');
   const [status, setStatus] = useState('idle');
@@ -287,10 +320,13 @@ export default function App() {
       }
 
       if (res.status === 401) {
-        setError('Session expired. Please log in again.');
+        const detail = await readErrorDetail(res);
+        setError(auth401Message(detail, base));
         setStatus('error');
-        await clearAuthToken();
-        setAuthToken('');
+        if (shouldClearAuthOn401(detail)) {
+          await clearAuthToken();
+          setAuthToken('');
+        }
         return;
       }
       if (res.status === 403) {
@@ -332,10 +368,13 @@ export default function App() {
           }
 
           if (pollRes.status === 401) {
-            setError('Session expired. Please log in again.');
+            const detail = await readErrorDetail(pollRes);
+            setError(auth401Message(detail, base));
             setStatus('error');
-            await clearAuthToken();
-            setAuthToken('');
+            if (shouldClearAuthOn401(detail)) {
+              await clearAuthToken();
+              setAuthToken('');
+            }
             return;
           }
 
