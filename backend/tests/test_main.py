@@ -112,6 +112,28 @@ def test_auth_me_requires_token_when_configured(client: TestClient, monkeypatch)
     assert r.status_code == 401
 
 
+def test_auth_me_requires_token_when_supabase_url_configured(client: TestClient, monkeypatch):
+    """When SUPABASE_URL is configured (JWKS mode), /auth/me still requires bearer auth."""
+    monkeypatch.setattr("config.SUPABASE_URL", "https://demo.supabase.co")
+    r = client.get("/auth/me")
+    assert r.status_code == 401
+
+
+def test_auth_me_accepts_bearer_when_jwks_mode(client: TestClient, monkeypatch):
+    """Bearer token should pass when verifier succeeds in JWKS mode."""
+    import utils.auth as auth_module
+
+    monkeypatch.setattr("config.SUPABASE_URL", "https://demo.supabase.co")
+    monkeypatch.setattr(
+        auth_module,
+        "_verify_supabase_jwt",
+        lambda _token: {"sub": "user-123", "email": "user@example.com", "role": "authenticated"},
+    )
+    r = client.get("/auth/me", headers={"Authorization": "Bearer token-value"})
+    assert r.status_code == 200
+    assert r.json()["user_id"] == "user-123"
+
+
 def test_init_db_migrates_jobs_extension_count_column(monkeypatch):
     """Older jobs tables should be migrated to include extension_count."""
     import storage.database as db_module

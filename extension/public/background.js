@@ -2,8 +2,29 @@
  * Service worker: opens side panel, forwards selection, handles auth token storage.
  */
 
-const DEFAULT_BACKEND = 'https://strang-heygen-production.up.railway.app';
+const DEFAULT_BACKEND = 'https://api.thestrang.com';
+const STALE_BACKENDS = [
+  'https://strang-heygen-production.up.railway.app',
+];
 const BACKEND_KEY = 'strang_backend_url';
+
+function normalizeBackend(url) {
+  return String(url || '').trim().replace(/\/+$/, '');
+}
+
+function migrateStaleBackend() {
+  try {
+    chrome.storage.local.get([BACKEND_KEY], (result) => {
+      const stored = normalizeBackend(result[BACKEND_KEY]);
+      if (stored && STALE_BACKENDS.includes(stored)) {
+        chrome.storage.local.set({ [BACKEND_KEY]: DEFAULT_BACKEND });
+      }
+    });
+  } catch (_e) {
+  }
+}
+
+migrateStaleBackend();
 
 if (chrome.sidePanel && chrome.sidePanel.setPanelBehavior) {
   try {

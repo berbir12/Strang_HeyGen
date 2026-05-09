@@ -40,7 +40,9 @@ const ResetPassword = () => {
 
     const initRecovery = async () => {
       if (!supabase) {
-        if (isMounted) setError("Auth is not configured.");
+        if (isMounted) {
+          setError("Password reset is temporarily unavailable. Please try again soon.");
+        }
         return;
       }
 
@@ -54,7 +56,9 @@ const ResetPassword = () => {
           refresh_token: refreshToken,
         });
         if (sessionError) {
-          if (isMounted) setError(sessionError.message);
+          if (isMounted) {
+            setError("This reset link is no longer valid. Please request a new one.");
+          }
           return;
         }
       }
@@ -62,7 +66,7 @@ const ResetPassword = () => {
       const { data } = await supabase.auth.getSession();
       if (!data.session) {
         if (isMounted) {
-          setError("Reset link is invalid or expired. Request a new one.");
+          setError("This reset link has expired. Please request a new one.");
         }
         return;
       }
