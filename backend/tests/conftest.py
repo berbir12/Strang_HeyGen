@@ -14,6 +14,7 @@ def env_and_data_dir(monkeypatch):
 
     monkeypatch.setattr("config.STRANG_API_KEY", "")
     monkeypatch.setattr("config.SUPABASE_JWT_SECRET", "")
+    monkeypatch.setattr("config.SUPABASE_URL", "")
     monkeypatch.setattr("config.STRIPE_SECRET_KEY", "")
     monkeypatch.setattr("config.DB_PATH", db_path)
 

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Loader2, Check } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { STRANG_API_URL } from "@/lib/api";
 
 /**
  * Bridge page for the Chrome extension auth flow.
@@ -32,6 +33,7 @@ const ExtensionAuth = () => {
         access_token: session.access_token,
         refresh_token: session.refresh_token,
         email: user?.email,
+        backend_url: STRANG_API_URL,
       },
       "*",
     );

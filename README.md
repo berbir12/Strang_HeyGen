@@ -77,6 +77,12 @@ npm run dev
 
 Open http://localhost:8080. To enable Plausible analytics in production, set `VITE_PLAUSIBLE_DOMAIN=yourdomain.com` in your build env.
 
+For auth emails and redirect links (signup verification / password reset), also set:
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+- `VITE_SITE_URL` (local: `http://localhost:8080`, prod: `https://www.thestrang.com`)
+
 ---
 
 ## Get early access

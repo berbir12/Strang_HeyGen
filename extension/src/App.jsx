@@ -3,8 +3,11 @@ import React, { useState, useCallback, useEffect } from 'react';
 const BACKEND_KEY = 'strang_backend_url';
 const BACKEND_KEY_LEGACY = 'ai_video_explainer_backend_url';
 const API_KEY_STORAGE_KEY = 'strang_api_key';
-const PRODUCTION_BACKEND = 'https://strang-heygen-production.up.railway.app';
+const PRODUCTION_BACKEND = 'https://api.thestrang.com';
 const DEFAULT_BACKEND = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_STRANG_API_URL) || PRODUCTION_BACKEND;
+const STALE_BACKENDS = new Set([
+  'https://strang-heygen-production.up.railway.app',
+]);
 const LANDING_URL =
   (typeof import.meta !== 'undefined' && import.meta.env?.VITE_LANDING_URL) || 'https://www.thestrang.com';
 const MAX_CHARS = 3000;
@@ -12,13 +15,22 @@ const SOFT_LIMIT_CHARS = 2500;
 const LOCAL_BACKEND_RE = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/i;
 const IS_DEV_BUILD = typeof import.meta !== 'undefined' && !!import.meta.env?.DEV;
 
+function normalizeBackend(url) {
+  return String(url || '').trim().replace(/\/+$/, '');
+}
+
 function getBackendUrl() {
   try {
     const stored = localStorage.getItem(BACKEND_KEY) || localStorage.getItem(BACKEND_KEY_LEGACY);
-    const normalizedStored = (stored || '').trim().replace(/\/+$/, '');
+    const normalizedStored = normalizeBackend(stored);
     if (!normalizedStored) return DEFAULT_BACKEND;
 
-    // Migrate stale local dev backend values for production users.
+    if (STALE_BACKENDS.has(normalizedStored)) {
+      localStorage.removeItem(BACKEND_KEY);
+      localStorage.removeItem(BACKEND_KEY_LEGACY);
+      return DEFAULT_BACKEND;
+    }
+
     if (!IS_DEV_BUILD && LOCAL_BACKEND_RE.test(normalizedStored)) {
       localStorage.removeItem(BACKEND_KEY);
       localStorage.removeItem(BACKEND_KEY_LEGACY);
@@ -27,6 +39,19 @@ function getBackendUrl() {
     return normalizedStored;
   } catch {
     return DEFAULT_BACKEND;
+  }
+}
+
+function setBackendUrl(url) {
+  try {
+    const normalized = normalizeBackend(url);
+    if (!normalized) return;
+    localStorage.setItem(BACKEND_KEY, normalized);
+    try {
+      chrome.storage?.local?.set?.({ [BACKEND_KEY]: normalized });
+    } catch {
+    }
+  } catch {
   }
 }
 
@@ -39,40 +64,42 @@ function getLegacyApiKey() {
 }
 
 function friendlyError(err, context) {
-  if (!err) return 'Something went wrong. Please try again.';
-  const msg = typeof err === 'string' ? err : (err.message || '');
+  if (!err) return "Something went wrong. Please try again.";
+  const msg = typeof err === "string" ? err : (err.message || "");
 
-  // Pass through messages we wrote ourselves — they're already user-friendly
   const ours = [
-    'Session expired',
-    'Free tier limit reached',
-    'Upgrade to Pro',
-    'No selection found',
-    'Cannot access this page',
-    'Select some text',
-    'Text is too long',
-    'log in',
+    "Session expired",
+    "Daily limit",
+    "Free limit",
+    "Upgrade",
+    "No text selected",
+    "Can't read this page",
+    "Select some text",
+    "Text is too long",
+    "sign in",
+    "Sign in",
+    "connection",
+    "Connection",
   ];
   if (ours.some((s) => msg.includes(s))) return msg;
 
-  // Network / connectivity
   if (
-    msg.includes('Failed to fetch') ||
-    msg.includes('NetworkError') ||
-    msg.includes('net::') ||
-    msg.includes('Load failed')
+    msg.includes("Failed to fetch") ||
+    msg.includes("NetworkError") ||
+    msg.includes("net::") ||
+    msg.includes("Load failed")
   ) {
-    return "Couldn't reach Strang. Check your connection and try again.";
+    return "Connection issue. Check your internet and try again.";
   }
 
-  if (context === 'poll') {
-    return 'Lost connection while creating your video. Please try again.';
+  if (context === "poll") {
+    return "Your video is taking longer than expected. Please try again.";
   }
-  if (context === 'generate') {
-    return 'Something went wrong while starting generation. Please try again.';
+  if (context === "generate") {
+    return "We couldn't start your video. Please try again in a moment.";
   }
 
-  return 'Something went wrong. Please try again.';
+  return "Something went wrong. Please try again.";
 }
 
 function progressLabel(status) {
@@ -128,6 +155,44 @@ function refreshAuthToken(backend) {
   });
 }
 
+function getBackendLabel(base) {
+  try {
+    return new URL(base).host;
+  } catch {
+    return base || 'configured backend';
+  }
+}
+
+async function readErrorDetail(res) {
+  try {
+    const data = await res.clone().json();
+    return String(data?.detail || data?.message || '').trim();
+  } catch {
+    return '';
+  }
+}
+
+function shouldClearAuthOn401(detail) {
+  const normalized = String(detail || '').toLowerCase();
+  return (
+    normalized.includes('expired') ||
+    normalized.includes('authentication required') ||
+    normalized.includes('invalid token') ||
+    normalized.includes('jwt')
+  );
+}
+
+function auth401Message(detail, _base) {
+  const normalized = String(detail || '').toLowerCase();
+  if (normalized.includes('expired')) {
+    return "Your session expired. Please sign in again.";
+  }
+  if (shouldClearAuthOn401(detail)) {
+    return "Your account session is no longer valid. Please sign in again.";
+  }
+  return "Please sign in to continue using Strang.";
+}
+
 export default function App() {
   const [selectedText, setSelectedText] = useState('');
   const [status, setStatus] = useState('idle');
@@ -137,6 +202,11 @@ export default function App() {
   const [authToken, setAuthToken] = useState('');
   const [authEmail, setAuthEmail] = useState('');
   const [authLoading, setAuthLoading] = useState(true);
+
+  const needsAuthAction = (message) => {
+    const normalized = String(message || '').toLowerCase();
+    return normalized.includes('log in') || normalized.includes('sign in');
+  };
 
   useEffect(() => {
     getAuthToken().then((res) => {
@@ -190,12 +260,12 @@ export default function App() {
     setError(null);
     chrome.runtime.sendMessage({ action: 'GET_SELECTION_FROM_TAB' }, (res) => {
       if (chrome.runtime.lastError) {
-        setError('Cannot access this page. Try a normal website (e.g. wikipedia.org) or paste text above.');
+        setError("Can't read this page. Try a regular website (like wikipedia.org) or paste your text above.");
         return;
       }
       const text = (res?.text ?? '').trim();
       setSelectedText(text);
-      if (!text) setError('No selection found. Select text on the page first, then click the button again.');
+      if (!text) setError("No text selected. Highlight some text on the page, then try again.");
       else setError(null);
     });
   }, []);
@@ -203,14 +273,14 @@ export default function App() {
   const generate = async () => {
     const text = selectedText.trim();
     if (!text) {
-      setError('Select some text on the page first, or paste it above, then click Generate.');
+      setError("Select some text on the page, or paste it above, then tap Generate.");
       return;
     }
     if (text.length > MAX_CHARS) {
-      setError(`Text is too long. Please use ${MAX_CHARS.toLocaleString()} characters or less.`);
+      setError(`Text is too long. Please keep it under ${MAX_CHARS.toLocaleString()} characters.`);
       return;
     }
-    const base = getBackendUrl();
+    let base = getBackendUrl();
     setError(null);
     setStatus('loading');
     setVideoUrl(null);
@@ -248,15 +318,46 @@ export default function App() {
         }
       }
 
+      // If custom/stale backend auth fails, retry once against production backend.
+      if (res.status === 401 && base !== DEFAULT_BACKEND) {
+        const fallbackBase = DEFAULT_BACKEND;
+        let fallbackRes = await fetch(`${fallbackBase}/generate`, {
+          method: 'POST',
+          headers: headersFor(),
+          body: JSON.stringify({ text }),
+        });
+
+        if (fallbackRes.status === 401) {
+          const refreshed = await refreshAuthToken(fallbackBase);
+          if (refreshed.ok && refreshed.access_token) {
+            setAuthToken(refreshed.access_token);
+            fallbackRes = await fetch(`${fallbackBase}/generate`, {
+              method: 'POST',
+              headers: headersFor(refreshed.access_token),
+              body: JSON.stringify({ text }),
+            });
+          }
+        }
+
+        if (fallbackRes.status !== 401) {
+          base = fallbackBase;
+          setBackendUrl(fallbackBase);
+          res = fallbackRes;
+        }
+      }
+
       if (res.status === 401) {
-        setError('Session expired. Please log in again.');
+        const detail = await readErrorDetail(res);
+        setError(auth401Message(detail, base));
         setStatus('error');
-        await clearAuthToken();
-        setAuthToken('');
+        if (shouldClearAuthOn401(detail)) {
+          await clearAuthToken();
+          setAuthToken('');
+        }
         return;
       }
       if (res.status === 403) {
-        setError('Free tier limit reached. Upgrade to Pro to continue.');
+        setError("You've reached your free plan limit. Upgrade to Pro to create more videos.");
         setStatus('error');
         return;
       }
@@ -294,10 +395,13 @@ export default function App() {
           }
 
           if (pollRes.status === 401) {
-            setError('Session expired. Please log in again.');
+            const detail = await readErrorDetail(pollRes);
+            setError(auth401Message(detail, base));
             setStatus('error');
-            await clearAuthToken();
-            setAuthToken('');
+            if (shouldClearAuthOn401(detail)) {
+              await clearAuthToken();
+              setAuthToken('');
+            }
             return;
           }
 
@@ -306,12 +410,12 @@ export default function App() {
           try {
             pollData = pollRaw ? JSON.parse(pollRaw) : {};
           } catch (_) {
-            setError('Something went wrong. Please try again.');
+            setError("Something went wrong while creating your video. Please try again.");
             setStatus('error');
             return;
           }
           if (!pollRes.ok) {
-            setError('Something went wrong while checking your video. Please try again.');
+            setError("We couldn't check on your video. Please try again.");
             setStatus('error');
             return;
           }
@@ -321,7 +425,7 @@ export default function App() {
             return;
           }
           if (pollData.status === 'failed') {
-            setError('Video generation didn\'t complete. Please try again.');
+            setError("Your video didn't finish generating. Please try again.");
             setStatus('error');
             return;
           }
@@ -465,7 +569,7 @@ export default function App() {
         {error && (
           <div className="mb-4 p-4 rounded-xl bg-destructive/15 border border-destructive/35 text-destructive-foreground text-sm space-y-3 leading-relaxed">
             <p className="font-medium text-foreground/95">{error}</p>
-            {status === 'error' && error.includes('log in') && (
+            {status === 'error' && needsAuthAction(error) && (
               <button
                 type="button"
                 onClick={handleLogin}
@@ -483,7 +587,7 @@ export default function App() {
                 Upgrade to Pro
               </button>
             )}
-            {status === 'error' && selectedText.trim() && !error.includes('log in') && !error.includes('Upgrade') && (
+            {status === 'error' && selectedText.trim() && !needsAuthAction(error) && !error.includes('Upgrade') && (
               <button
                 type="button"
                 onClick={() => { setError(null); generate(); }}

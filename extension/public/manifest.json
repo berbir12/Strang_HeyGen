@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Strang",
-  "version": "1.0.1",
+  "version": "1.0.3",
   "description": "Turn any text into a video. Highlight or paste—get an AI explainer video in minutes.",
   "permissions": [
     "activeTab",
@@ -12,7 +12,7 @@
   "host_permissions": [
     "https://www.thestrang.com/*",
     "https://thestrang.com/*",
-    "https://strang-heygen-production.up.railway.app/*"
+    "https://api.thestrang.com/*"
   ],
   "background": {
     "service_worker": "background.js"
