@@ -109,5 +109,9 @@ async def require_auth(request: Request) -> dict:
             raise HTTPException(status_code=401, detail="Token expired. Please log in again.")
         except jwt.InvalidTokenError as exc:
             logger.warning("Invalid JWT: %s", exc)
+        except jwt.PyJWTError as exc:
+            logger.warning("JWT verification error: %s", exc)
+        except Exception as exc:
+            logger.error("Unexpected auth verification error: %s", exc, exc_info=True)
 
     raise HTTPException(status_code=401, detail="Authentication required")
