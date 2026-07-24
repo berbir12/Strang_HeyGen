@@ -22,18 +22,18 @@ const AppleIcon = () => (
 const features = [
   {
     icon: <Video className="w-4 h-4" />,
-    title: "Text → video in minutes",
-    desc: "Paste any dense content, get a polished explainer video back.",
+    title: "Explain one difficult passage",
+    desc: "Turn the section slowing you down into a focused visual walkthrough.",
   },
   {
     icon: <Sparkles className="w-4 h-4" />,
-    title: "AI-written scripts",
-    desc: "GPT-4 distills your content into a tight, engaging script automatically.",
+    title: "Built for dense course material",
+    desc: "Use textbook chapters, research papers, lecture notes, or assigned readings.",
   },
   {
     icon: <Zap className="w-4 h-4" />,
-    title: "One-click from Chrome",
-    desc: "Highlight text on any webpage and hit generate — no copy-paste needed.",
+    title: "Stay on the page",
+    desc: "Highlight text and watch the explanation from Chrome’s side panel.",
   },
 ];
 
@@ -82,20 +82,15 @@ const Signup = () => {
 
   if (confirmSent) {
     return (
-      <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#07070c] px-4">
-        <div
-          className="pointer-events-none absolute inset-0 opacity-80"
-          style={{ background: "radial-gradient(ellipse 70% 50% at 50% -10%, hsl(265 90% 65% / 0.2), transparent)" }}
-          aria-hidden
-        />
-        <div className="relative z-10 w-full max-w-[430px] text-center">
-          <div className="space-y-5 rounded-3xl border border-white/10 bg-white/[0.04] p-10 shadow-[0_24px_80px_rgba(0,0,0,0.45)] backdrop-blur-xl">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-purple-300/30 bg-purple-500/20">
-              <Mail className="h-7 w-7 text-purple-200" />
+      <div className="flex min-h-screen items-center justify-center bg-[#191816] px-5 text-[#f4f0e7]">
+        <div className="w-full max-w-[430px] border-t border-[#46413b] py-8 text-center">
+          <div className="space-y-5">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-md bg-[#2c2925]">
+              <Mail className="h-6 w-6 text-[#df694c]" />
             </div>
             <div>
-              <h1 className="font-display text-2xl font-bold text-white">Check your inbox</h1>
-              <p className="mt-2 text-sm leading-relaxed text-white/65">
+              <h1 className="font-display text-3xl font-semibold">Check your inbox</h1>
+              <p className="mt-2 text-sm leading-relaxed text-[#aaa49a]">
                 We sent a confirmation link to{" "}
                 <strong className="text-white">{email}</strong>.
                 Click it to activate your account, then sign in.
@@ -103,13 +98,13 @@ const Signup = () => {
             </div>
             <Link
               to={`/login${isExtension ? "?extension=true" : ""}`}
-              className="inline-flex h-12 w-full items-center justify-center rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 px-4 text-sm font-semibold text-white transition hover:from-purple-400 hover:to-pink-400"
+              className="inline-flex h-12 w-full items-center justify-center rounded-md bg-[#df694c] px-4 text-sm font-semibold text-white transition hover:opacity-90"
             >
               Go to sign in
             </Link>
-            <p className="text-xs text-white/50">
+            <p className="text-xs text-[#8f8980]">
               No email? Check spam, or{" "}
-              <button type="button" onClick={() => setConfirmSent(false)} className="font-medium text-purple-300 hover:underline">
+              <button type="button" onClick={() => setConfirmSent(false)} className="font-medium text-[#df694c] hover:underline">
                 try again
               </button>
               .
@@ -122,7 +117,7 @@ const Signup = () => {
 
   return (
     <AuthShell
-      badge="Includes one complete trial video"
+      badge="One complete trial video"
       heading={
         <>
           Make complex ideas{" "}
@@ -133,9 +128,6 @@ const Signup = () => {
       }
       description="Get through difficult readings with short visual explanations of the passages that slow you down."
       features={features}
-      quote="I stopped writing long onboarding docs and now ship quick explainers people actually watch."
-      quoteAuthor="Nadia R."
-      quoteRole="Growth Lead"
       cardTitle="Create your account"
       cardSubtitle="Get started in under a minute. No credit card required."
     >
