@@ -9,17 +9,17 @@ const HeroSection = () => {
         <div>
           <div className="mb-7 flex items-center gap-3 text-sm font-medium">
             <span className="h-px w-8 bg-primary" />
-            <span className="text-muted-foreground">Chrome extension · Now available</span>
+            <span className="text-muted-foreground">For students reading difficult material</span>
           </div>
 
           <h1 className="mb-6 font-display text-5xl font-semibold leading-[0.98] tracking-[-0.035em] sm:text-6xl md:text-7xl">
-            Turn the paragraph you’re stuck on into{" "}
-            <span className="text-primary italic">a short video.</span>
+            Understand the passage{" "}
+            <span className="text-primary italic">that isn’t clicking.</span>
           </h1>
 
           <p className="mb-8 max-w-lg text-lg leading-relaxed text-muted-foreground">
-            Highlight text on any page. Strang explains it visually in the browser, so you can
-            keep reading without opening another app.
+            Highlight a dense textbook paragraph or research excerpt. Strang turns it into a
+            short visual explanation you can follow before moving on.
           </p>
 
           <div className="mb-8 flex flex-wrap items-center gap-5">
@@ -33,13 +33,13 @@ const HeroSection = () => {
           </div>
 
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs font-medium text-muted-foreground">
-            <p>3 free videos</p>
+            <p>1 complete trial video</p>
             <p>No credit card</p>
             <p>Works on most webpages</p>
           </div>
         </div>
 
-        <div className="product-window rotate-[0.7deg] p-3 text-left">
+        <div className="product-window p-3 text-left">
           <div className="mb-3 flex items-center justify-between border-b border-border px-2 py-2.5">
             <div className="flex items-center gap-2">
               <span className="h-2 w-2 rounded-full bg-primary" />

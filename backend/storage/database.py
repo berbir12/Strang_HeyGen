@@ -63,6 +63,19 @@ async def _ensure_jobs_extension_count_column(db: aiosqlite.Connection) -> None:
         )
 
 
+async def _ensure_users_billing_columns(db: aiosqlite.Connection) -> None:
+    """Backfill billing-period fields and current free-plan limits."""
+    cursor = await db.execute("PRAGMA table_info(users)")
+    cols = await cursor.fetchall()
+    names = {c[1] for c in cols}
+    if "current_period_start" not in names:
+        await db.execute("ALTER TABLE users ADD COLUMN current_period_start REAL")
+    await db.execute(
+        "UPDATE users SET videos_limit = ? WHERE plan = 'free'",
+        (config.FREE_TIER_VIDEO_LIMIT,),
+    )
+
+
 async def init_db() -> None:
     """Create tables if they don't exist. Called once at startup."""
     _db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -110,12 +123,14 @@ async def init_db() -> None:
                 subscription_id     TEXT,
                 plan                TEXT NOT NULL DEFAULT 'free',
                 videos_generated    INTEGER NOT NULL DEFAULT 0,
-                videos_limit        INTEGER NOT NULL DEFAULT 3,
+                videos_limit        INTEGER NOT NULL DEFAULT 1,
+                current_period_start REAL,
                 current_period_end  REAL,
                 created_at          REAL NOT NULL,
                 updated_at          REAL NOT NULL
             )
         """)
+        await _ensure_users_billing_columns(db)
         await db.commit()
 
 

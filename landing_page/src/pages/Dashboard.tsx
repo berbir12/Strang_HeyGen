@@ -28,7 +28,19 @@ const Dashboard = () => {
 
   const isPro = profile?.subscription_status === "active" || profile?.subscription_status === "trialing";
   const videosUsed = profile?.videos_generated ?? 0;
-  const videosLimit = profile?.videos_limit ?? 3;
+  const videosLimit = profile?.videos_limit ?? 1;
+  const videosRemaining = Math.max(0, videosLimit - videosUsed);
+  const usagePercent = videosLimit > 0 ? Math.min(100, (videosUsed / videosLimit) * 100) : 0;
+  const periodEnd = profile?.current_period_end
+    ? new Date(profile.current_period_end * 1000)
+    : null;
+  const periodLabel = periodEnd
+    ? `Resets ${periodEnd.toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      })}`
+    : "One-time trial allowance";
 
   const handleCheckout = async () => {
     if (!STRANG_API_URL || !session?.access_token) return;
@@ -104,11 +116,36 @@ const Dashboard = () => {
             </span>
           </div>
 
-          {isPro ? (
-            <div className="space-y-3">
-              <p className="text-muted-foreground">
-                Unlimited video generation. Thanks for subscribing!
-              </p>
+          <div className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="rounded-md border border-border bg-secondary/35 p-4">
+                <p className="text-xs font-medium text-muted-foreground">Used</p>
+                <p className="mt-1 font-display text-3xl font-semibold">{videosUsed}</p>
+              </div>
+              <div className="rounded-md border border-border bg-secondary/35 p-4">
+                <p className="text-xs font-medium text-muted-foreground">Remaining</p>
+                <p className="mt-1 font-display text-3xl font-semibold">{videosRemaining}</p>
+              </div>
+              <div className="rounded-md border border-border bg-secondary/35 p-4">
+                <p className="text-xs font-medium text-muted-foreground">Allowance</p>
+                <p className="mt-1 font-display text-3xl font-semibold">{videosLimit}</p>
+              </div>
+            </div>
+
+            <div>
+              <div className="mb-2 flex items-center justify-between gap-3 text-sm">
+                <span>{videosUsed} of {videosLimit} videos used</span>
+                <span className="text-muted-foreground">{periodLabel}</span>
+              </div>
+              <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
+                <div
+                  className="h-full rounded-full bg-primary transition-all"
+                  style={{ width: `${usagePercent}%` }}
+                />
+              </div>
+            </div>
+
+            {isPro ? (
               <button
                 onClick={handlePortal}
                 className="flex items-center gap-2 text-sm text-primary hover:underline font-medium"
@@ -117,24 +154,12 @@ const Dashboard = () => {
                 Manage subscription
                 <ExternalLink className="w-3 h-3" />
               </button>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <p className="text-muted-foreground">
-                <strong className="text-foreground">{videosUsed}</strong> /{" "}
-                {videosLimit} free videos used
-              </p>
-              <div className="w-full h-2 rounded-full bg-secondary overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-primary transition-all"
-                  style={{ width: `${Math.min(100, (videosUsed / videosLimit) * 100)}%` }}
-                />
-              </div>
+            ) : (
               <button onClick={handleCheckout} className="glow-button text-sm px-6 py-2.5">
                 Upgrade to Pro
               </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* Extension link */}

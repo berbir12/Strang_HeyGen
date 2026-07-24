@@ -7,6 +7,7 @@ import aiosqlite
 import httpx
 import pytest
 import respx
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 import main as main_module
@@ -162,5 +163,84 @@ def test_init_db_migrates_jobs_extension_count_column(monkeypatch):
             cols = await cursor.fetchall()
             col_names = {c[1] for c in cols}
             assert "extension_count" in col_names
+
+    asyncio.run(_run())
+
+
+def test_new_user_gets_one_complete_trial(monkeypatch):
+    """Free accounts receive one lifetime trial video."""
+    import storage.database as db_module
+
+    async def _run() -> None:
+        await db_module.init_db()
+        user = await db_module.create_user("trial-user", "student@example.com")
+        assert user["videos_limit"] == 1
+        assert user["videos_generated"] == 0
+
+    asyncio.run(_run())
+
+
+def test_paid_invoice_resets_usage_for_new_billing_period(monkeypatch):
+    """Stripe invoice periods reset paid usage once, without repeat resets."""
+    import services.stripe_service as stripe_module
+    import storage.database as db_module
+
+    async def _run() -> None:
+        await db_module.init_db()
+        await db_module.create_user("pro-user", "student@example.com")
+        await db_module.update_user(
+            "pro-user",
+            stripe_customer_id="cus_test",
+            plan="pro",
+            subscription_status="active",
+            videos_generated=7,
+            videos_limit=20,
+            current_period_start=1000,
+            current_period_end=2000,
+        )
+        invoice = {
+            "customer": "cus_test",
+            "lines": {"data": [{"period": {"start": 2000, "end": 3000}}]},
+        }
+        await stripe_module._handle_invoice_paid(invoice)
+        user = await db_module.get_user("pro-user")
+        assert user["videos_generated"] == 0
+        assert user["videos_limit"] == 20
+        assert user["current_period_start"] == 2000
+        assert user["current_period_end"] == 3000
+
+        await db_module.update_user("pro-user", videos_generated=2)
+        await stripe_module._handle_invoice_paid(invoice)
+        user = await db_module.get_user("pro-user")
+        assert user["videos_generated"] == 2
+
+    asyncio.run(_run())
+
+
+def test_paid_plan_limit_is_enforced(monkeypatch):
+    """Active subscriptions cannot generate beyond their period allowance."""
+    import storage.database as db_module
+
+    async def _run() -> None:
+        await db_module.init_db()
+        await db_module.create_user("limited-pro", "student@example.com")
+        await db_module.update_user(
+            "limited-pro",
+            plan="pro",
+            subscription_status="active",
+            videos_generated=20,
+            videos_limit=20,
+        )
+        with pytest.raises(HTTPException) as exc:
+            await main_module.require_subscription(
+                None,
+                {
+                    "user_id": "limited-pro",
+                    "email": "student@example.com",
+                    "role": "authenticated",
+                },
+            )
+        assert exc.value.status_code == 403
+        assert "Monthly Pro" in exc.value.detail
 
     asyncio.run(_run())

@@ -110,8 +110,10 @@ LANDING_PAGE_URL_FOR_REFERRAL: str = (
     )
 )
 
-# --- Free tier ---
-FREE_TIER_VIDEO_LIMIT = int(os.environ.get("FREE_TIER_VIDEO_LIMIT", "3"))
+# --- Plan usage ---
+# Free is a one-time product trial. Paid usage resets with the Stripe period.
+FREE_TIER_VIDEO_LIMIT = int(os.environ.get("FREE_TIER_VIDEO_LIMIT", "1"))
+PRO_TIER_VIDEO_LIMIT = int(os.environ.get("PRO_TIER_VIDEO_LIMIT", "20"))
 
 # --- CORS ---
 CORS_ORIGINS_RAW, CORS_ORIGINS = _build_cors_allowlist(
