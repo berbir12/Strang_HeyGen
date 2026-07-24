@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Strang",
-  "version": "1.0.4",
-  "description": "Turn any text into a video. Highlight or paste—get an AI explainer video in minutes.",
+  "version": "1.0.5",
+  "description": "Highlight a dense passage and turn it into a short visual explanation without leaving the page.",
   "permissions": [
     "activeTab",
     "sidePanel",
