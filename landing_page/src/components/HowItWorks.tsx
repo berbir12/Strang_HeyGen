@@ -26,47 +26,41 @@ const steps = [
 
 const HowItWorks = () => {
   return (
-    <section className="py-24 px-4">
+    <section id="how-it-works" className="border-b border-border px-5 py-24">
       <div className="max-w-6xl mx-auto">
-        <div className="text-center mb-14">
-          <p className="text-xs uppercase tracking-[0.18em] text-primary font-semibold mb-3">Workflow</p>
-          <h2 className="font-display text-3xl sm:text-4xl md:text-5xl font-bold mb-4">How Strang Works</h2>
-          <p className="text-muted-foreground max-w-lg mx-auto">
-            Three fast steps from reading to understanding, without leaving your browser.
+        <div className="mb-14 grid gap-5 md:grid-cols-2 md:items-end">
+          <h2 className="font-display text-4xl font-semibold tracking-tight sm:text-5xl">
+            From highlight to explanation.
+          </h2>
+          <p className="max-w-md text-muted-foreground md:justify-self-end">
+            Three steps, all in the browser. No uploads, prompt writing, or new workspace.
           </p>
         </div>
 
         <div className="relative grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
-          <div className="hidden md:block absolute top-10 left-[18%] right-[18%] h-px bg-gradient-to-r from-primary/20 via-primary/60 to-primary/20" />
           {steps.map((step, i) => (
             <div
               key={step.title}
-              className="relative rounded-2xl border border-border bg-card/60 backdrop-blur-sm p-7 md:p-8 group transition-all duration-300 hover:border-primary/40 hover:-translate-y-1"
+              className="group relative border-t border-border py-6 md:py-8"
             >
-              <div className="flex items-center justify-between mb-6">
-                <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-primary/10 group-hover:bg-primary/20 transition-colors">
-                  <step.icon className="w-6 h-6 text-primary" />
+              <div className="mb-8 flex items-center justify-between">
+                <div className="inline-flex h-10 w-10 items-center justify-center rounded-md bg-secondary">
+                  <step.icon className="h-5 w-5 text-foreground" />
                 </div>
-                <div className="text-xs font-semibold text-primary/80 border border-primary/25 bg-primary/5 rounded-full px-3 py-1">
+                <div className="font-display text-xl text-muted-foreground">
                   0{i + 1}
                 </div>
               </div>
-              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-2">
+              <div className="mb-2 text-xs font-semibold uppercase tracking-widest text-primary">
                 {step.eyebrow}
               </div>
-              <h3 className="font-display text-2xl font-bold mb-3">{step.title}</h3>
+              <h3 className="mb-3 font-display text-2xl font-semibold">{step.title}</h3>
               <p className="text-foreground/90 text-sm leading-relaxed mb-4">{step.description}</p>
               <p className="text-xs text-muted-foreground border-t border-border pt-4">{step.detail}</p>
-              <div className="absolute inset-x-7 bottom-0 h-[2px] bg-gradient-to-r from-transparent via-primary/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
           ))}
         </div>
 
-        <div className="mt-10 flex flex-wrap items-center justify-center gap-3 text-xs text-muted-foreground">
-          <span className="rounded-full border border-border px-3 py-1">No context switching</span>
-          <span className="rounded-full border border-border px-3 py-1">Sidebar playback</span>
-          <span className="rounded-full border border-border px-3 py-1">Shareable links</span>
-        </div>
       </div>
     </section>
   );
