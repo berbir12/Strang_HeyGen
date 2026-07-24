@@ -49,21 +49,21 @@ const ExtensionAuth = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center px-4">
-      <div className="w-full max-w-sm text-center space-y-6">
+    <div className="flex min-h-screen items-center justify-center bg-[#191816] px-5 text-[#f4f0e7]">
+      <div className="w-full max-w-sm space-y-6 border-t border-[#46413b] py-8 text-center">
         <img
           src="/strang-logo.png"
           alt="Strang logo"
-          className="w-16 h-16 rounded-xl border border-border/60 shadow-sm mx-auto"
+          className="mx-auto h-12 w-12 rounded-md"
         />
 
         {sent ? (
           <>
-            <div className="flex items-center justify-center gap-2 text-primary">
+            <div className="flex items-center justify-center gap-2 text-[#df694c]">
               <Check className="w-6 h-6" />
               <span className="font-display text-xl font-semibold">Connected!</span>
             </div>
-            <p className="text-muted-foreground">
+            <p className="text-[#aaa49a]">
               Your Strang extension is now linked to your account.
               You can close this tab and return to the extension.
             </p>
@@ -71,13 +71,13 @@ const ExtensionAuth = () => {
         ) : (
           <>
             <h1 className="font-display text-xl font-bold">Connecting extension…</h1>
-            <Loader2 className="w-6 h-6 animate-spin text-primary mx-auto" />
+            <Loader2 className="mx-auto h-6 w-6 animate-spin text-[#df694c]" />
           </>
         )}
 
         <Link
           to="/dashboard"
-          className="inline-block text-sm text-primary hover:underline font-medium"
+          className="inline-block text-sm font-medium text-[#df694c] hover:underline"
         >
           Go to dashboard
         </Link>

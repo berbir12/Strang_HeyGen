@@ -22,18 +22,18 @@ const AppleIcon = () => (
 const features = [
   {
     icon: <Video className="w-4 h-4" />,
-    title: "Text → video in minutes",
-    desc: "Paste any dense content, get a polished explainer video back.",
+    title: "Explain one difficult passage",
+    desc: "Turn the section slowing you down into a focused visual walkthrough.",
   },
   {
     icon: <Sparkles className="w-4 h-4" />,
-    title: "AI-written scripts",
-    desc: "GPT-4 distills your content into a tight, engaging script automatically.",
+    title: "Built for dense course material",
+    desc: "Use textbook chapters, research papers, lecture notes, or assigned readings.",
   },
   {
     icon: <Zap className="w-4 h-4" />,
-    title: "One-click from Chrome",
-    desc: "Highlight text on any webpage and hit generate — no copy-paste needed.",
+    title: "Stay on the page",
+    desc: "Highlight text and watch the explanation from Chrome’s side panel.",
   },
 ];
 
@@ -76,22 +76,19 @@ const Login = () => {
 
   return (
     <AuthShell
-      badge="For learners & educators"
+      badge="For students reading difficult material"
       heading={
         <>
-          Turn any text into an{" "}
-          <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-300 to-pink-300">
-            explainer video
+          Understand the passage{" "}
+          <span className="text-primary italic">
+            that isn’t clicking
           </span>
         </>
       }
-      description="Highlight text on any webpage, hit generate, and get a polished talking-head video in minutes."
+      description="Sign in to turn a dense textbook paragraph or research excerpt into a short visual explanation."
       features={features}
-      quote="Strang turned a 10-page research paper into a 3-minute video my whole team actually watched."
-      quoteAuthor="Alex M."
-      quoteRole="Product Manager"
       cardTitle="Welcome back"
-      cardSubtitle="Sign in to continue building better explainer videos."
+      cardSubtitle="Continue where you left off in your reading."
     >
       <div className="space-y-3">
         <button

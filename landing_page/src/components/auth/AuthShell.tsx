@@ -12,9 +12,9 @@ type AuthShellProps = {
   heading: ReactNode;
   description: string;
   features: AuthFeature[];
-  quote: string;
-  quoteAuthor: string;
-  quoteRole: string;
+  quote?: string;
+  quoteAuthor?: string;
+  quoteRole?: string;
   cardTitle: string;
   cardSubtitle: string;
   children: ReactNode;
@@ -25,83 +25,61 @@ const AuthShell = ({
   heading,
   description,
   features,
-  quote,
-  quoteAuthor,
-  quoteRole,
   cardTitle,
   cardSubtitle,
   children,
 }: AuthShellProps) => {
   return (
-    <div className="min-h-screen bg-[#07070c] text-white">
-      <div className="mx-auto flex min-h-screen w-full max-w-[1280px] flex-col lg:flex-row">
-        <aside className="relative overflow-hidden border-b border-white/10 px-6 py-8 sm:px-8 lg:w-[46%] lg:border-b-0 lg:border-r lg:px-10 lg:py-10">
-          <div
-            className="pointer-events-none absolute -top-24 -left-24 h-[340px] w-[340px] rounded-full opacity-50 blur-3xl"
-            style={{ background: "radial-gradient(circle, hsl(265 90% 60%), transparent 70%)" }}
-            aria-hidden
-          />
-          <div
-            className="pointer-events-none absolute bottom-0 right-0 h-[280px] w-[280px] rounded-full opacity-35 blur-3xl"
-            style={{ background: "radial-gradient(circle, hsl(296 88% 62%), transparent 70%)" }}
-            aria-hidden
-          />
-
-          <div className="relative z-10 flex h-full flex-col">
-            <Link to="/" className="inline-flex items-center gap-2.5">
-              <img src="/strang-logo.png" alt="Strang" className="h-10 w-10 rounded-xl border border-white/20 shadow-lg shadow-purple-500/20" />
-              <span className="font-display text-xl font-bold text-white">Strang</span>
+    <div className="auth-shell min-h-screen bg-[#191816] text-[#f4f0e7]">
+      <div className="grid min-h-screen lg:grid-cols-[1fr_1px_1fr]">
+        <aside className="relative flex px-6 py-7 sm:px-10 lg:justify-end lg:px-14 lg:py-10">
+          <div className="flex w-full max-w-[560px] flex-col">
+            <Link to="/" className="inline-flex items-center gap-2.5 self-start">
+              <img src="/strang-logo.png" alt="Strang" className="h-9 w-9 rounded-md" />
+              <span className="font-display text-2xl font-semibold">Strang</span>
             </Link>
 
-            <div className="mt-10 space-y-5 lg:mt-14">
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-purple-300/90">{badge}</p>
-              <h2 className="font-display text-3xl font-bold leading-tight text-white sm:text-4xl">
+            <div className="my-auto py-14 lg:py-20">
+              <div className="mb-7 flex items-center gap-3 text-sm font-medium">
+                <span className="h-px w-8 bg-[#df694c]" />
+                <span className="text-[#a9a298]">{badge}</span>
+              </div>
+              <h2 className="max-w-[11ch] font-display text-5xl font-semibold leading-[0.98] tracking-[-0.035em] sm:text-6xl">
                 {heading}
               </h2>
-              <p className="max-w-md text-sm leading-relaxed text-white/70">{description}</p>
-            </div>
+              <p className="mt-6 max-w-md text-base leading-relaxed text-[#aaa49a]">
+                {description}
+              </p>
 
-            <div className="mt-8 space-y-4 lg:mt-10">
-              {features.map((feature) => (
-                <div key={feature.title} className="flex items-start gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-3">
-                  <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-purple-400/30 bg-purple-500/15 text-purple-300">
-                    {feature.icon}
+              <div className="mt-10 grid gap-px overflow-hidden rounded-md border border-[#393631] bg-[#393631] sm:grid-cols-3 lg:grid-cols-1">
+                {features.map((feature) => (
+                  <div key={feature.title} className="flex gap-3 bg-[#201f1c] p-4">
+                    <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-[#2c2925] text-[#df694c]">
+                      {feature.icon}
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold">{feature.title}</p>
+                      <p className="mt-1 text-xs leading-relaxed text-[#8f8980]">{feature.desc}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-semibold text-white/90">{feature.title}</p>
-                    <p className="mt-0.5 text-xs leading-relaxed text-white/60">{feature.desc}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-8 rounded-2xl border border-white/10 bg-white/[0.03] p-4 lg:mt-auto">
-              <p className="text-sm italic leading-relaxed text-white/70">"{quote}"</p>
-              <div className="mt-3 flex items-center gap-2.5">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-purple-400 to-pink-400 text-xs font-bold text-white">
-                  {quoteAuthor.charAt(0)}
-                </div>
-                <div>
-                  <p className="text-xs font-semibold text-white/80">{quoteAuthor}</p>
-                  <p className="text-[11px] text-white/50">{quoteRole}</p>
-                </div>
+                ))}
               </div>
             </div>
+
+            <p className="text-xs text-[#777169]">One complete trial video · No credit card</p>
           </div>
         </aside>
 
-        <main className="relative flex flex-1 items-center justify-center overflow-hidden px-4 py-10 sm:px-6 lg:px-10">
-          <div
-            className="pointer-events-none absolute inset-x-0 top-0 h-72 opacity-70"
-            style={{ background: "radial-gradient(ellipse 80% 55% at 50% -10%, hsl(265 90% 64% / 0.28), transparent)" }}
-            aria-hidden
-          />
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_25%_20%,rgba(147,51,234,0.08),transparent_40%),radial-gradient(circle_at_75%_80%,rgba(236,72,153,0.08),transparent_45%)]" aria-hidden />
+        <div className="hidden bg-[#393631] lg:block" aria-hidden />
 
-          <section className="relative z-10 w-full max-w-[430px] rounded-3xl border border-white/10 bg-white/[0.03] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.45)] backdrop-blur-xl sm:p-7">
-            <div className="mb-6">
-              <h1 className="font-display text-[30px] font-bold tracking-tight text-white">{cardTitle}</h1>
-              <p className="mt-1.5 text-sm text-white/60">{cardSubtitle}</p>
+        <main className="flex items-center justify-center border-t border-[#393631] bg-[#201f1c] px-5 py-12 lg:border-0">
+          <section className="w-full max-w-[430px]">
+            <div className="mb-8 border-b border-[#393631] pb-6">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#df694c]">
+                Strang account
+              </p>
+              <h1 className="font-display text-4xl font-semibold tracking-tight">{cardTitle}</h1>
+              <p className="mt-2 text-sm leading-relaxed text-[#928c83]">{cardSubtitle}</p>
             </div>
             {children}
           </section>

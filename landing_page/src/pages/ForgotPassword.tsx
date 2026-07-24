@@ -7,8 +7,8 @@ import { useAuth } from "@/contexts/AuthContext";
 const features = [
   {
     icon: <Video className="h-4 w-4" />,
-    title: "Text -> video in minutes",
-    desc: "Paste complex content and turn it into polished explainers instantly.",
+    title: "Return to your reading",
+    desc: "Recover your account and continue with the material you were studying.",
   },
   {
     icon: <Sparkles className="h-4 w-4" />,
@@ -17,8 +17,8 @@ const features = [
   },
   {
     icon: <Zap className="h-4 w-4" />,
-    title: "One-click workflow",
-    desc: "Create videos directly from content you are already reading.",
+    title: "Stay in the browser",
+    desc: "Your explanations remain available from Strang’s side panel.",
   },
 ];
 
@@ -55,9 +55,6 @@ const ForgotPassword = () => {
       }
       description="Enter your account email and we will send you a secure link to reset your password."
       features={features}
-      quote="Resetting access for teammates is now clean and reliable. No support ticket loops."
-      quoteAuthor="Ibrahim K."
-      quoteRole="Operations Manager"
       cardTitle={sent ? "Check your email" : "Forgot your password?"}
       cardSubtitle={
         sent

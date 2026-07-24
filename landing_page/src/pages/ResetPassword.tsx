@@ -122,9 +122,6 @@ const ResetPassword = () => {
       }
       description="Choose a strong password and we will update your account immediately."
       features={features}
-      quote="Password recovery is now frictionless and secure. Exactly what we needed."
-      quoteAuthor="Maya T."
-      quoteRole="Customer Success"
       cardTitle="Reset your password"
       cardSubtitle="Create a new password to finish account recovery."
     >
