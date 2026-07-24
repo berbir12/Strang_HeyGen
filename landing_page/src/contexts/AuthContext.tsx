@@ -67,6 +67,8 @@ interface UserProfile {
   subscription_status: string;
   videos_generated: number;
   videos_limit: number;
+  current_period_start: number | null;
+  current_period_end: number | null;
 }
 
 interface AuthState {

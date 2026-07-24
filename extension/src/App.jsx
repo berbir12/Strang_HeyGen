@@ -357,7 +357,8 @@ export default function App() {
         return;
       }
       if (res.status === 403) {
-        setError("You've reached your free plan limit. Upgrade to Pro to create more videos.");
+        const detail = await readErrorDetail(res);
+        setError(detail || "You've reached your current video allowance.");
         setStatus('error');
         return;
       }
@@ -577,13 +578,13 @@ export default function App() {
                 Log in
               </button>
             )}
-            {status === 'error' && error.includes('Upgrade') && (
+            {status === 'error' && (error.includes('Upgrade') || error.includes('allowance resets')) && (
               <button
                 type="button"
                 onClick={() => chrome.tabs.create({ url: `${LANDING_URL}/dashboard` })}
                 className="text-sm font-semibold text-primary hover:text-primary/85 underline decoration-primary/35 underline-offset-2"
               >
-                Upgrade to Pro
+                View plan and usage
               </button>
             )}
             {status === 'error' && selectedText.trim() && !needsAuthAction(error) && !error.includes('Upgrade') && (

@@ -27,9 +27,6 @@ const TopNav = () => {
           <NavLink to="/features" className={navLinkClass}>
             Features
           </NavLink>
-          <NavLink to="/reviews" className={navLinkClass}>
-            Reviews
-          </NavLink>
           <NavLink to="/pricing" className={navLinkClass}>
             Pricing
           </NavLink>

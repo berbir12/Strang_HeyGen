@@ -11,7 +11,6 @@ import NotFound from "./pages/NotFound";
 import Privacy from "./pages/Privacy";
 import HowItWorksPage from "./pages/HowItWorksPage";
 import FeaturesPage from "./pages/FeaturesPage";
-import ReviewsPage from "./pages/ReviewsPage";
 import PricingPage from "./pages/PricingPage";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -35,7 +34,6 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/how-it-works" element={<HowItWorksPage />} />
               <Route path="/features" element={<FeaturesPage />} />
-              <Route path="/reviews" element={<ReviewsPage />} />
               <Route path="/pricing" element={<PricingPage />} />
               <Route path="/privacy" element={<Privacy />} />
               {/* Auth routes */}

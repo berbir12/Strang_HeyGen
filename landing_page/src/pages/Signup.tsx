@@ -122,7 +122,7 @@ const Signup = () => {
 
   return (
     <AuthShell
-      badge="Free to get started"
+      badge="Includes one complete trial video"
       heading={
         <>
           Make complex ideas{" "}
@@ -131,7 +131,7 @@ const Signup = () => {
           </span>
         </>
       }
-      description="Stop losing people to walls of text. Strang turns any dense content into videos your audience actually finishes."
+      description="Get through difficult readings with short visual explanations of the passages that slow you down."
       features={features}
       quote="I stopped writing long onboarding docs and now ship quick explainers people actually watch."
       quoteAuthor="Nadia R."

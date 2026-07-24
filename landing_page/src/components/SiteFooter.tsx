@@ -1,4 +1,3 @@
-import LiveActivityPopup from "@/components/LiveActivityPopup";
 import { ShieldCheck } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -17,7 +16,7 @@ const SiteFooter = () => {
               <span className="font-display text-2xl font-bold">Strang</span>
             </Link>
             <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">
-              Strang turns selected text into clear AI explainer videos directly in your browser workflow.
+              Strang helps students understand dense passages with short visual explanations in the browser.
             </p>
             <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-border bg-secondary/60 px-3 py-1 text-xs text-muted-foreground">
               <ShieldCheck className="w-3.5 h-3.5 text-primary" />
@@ -33,9 +32,6 @@ const SiteFooter = () => {
               </Link>
               <Link to="/features" className="block hover:text-primary transition-colors">
                 Features
-              </Link>
-              <Link to="/reviews" className="block hover:text-primary transition-colors">
-                Reviews
               </Link>
               <Link to="/pricing" className="block hover:text-primary transition-colors">
                 Pricing
@@ -79,7 +75,6 @@ const SiteFooter = () => {
         </div>
       </div>
 
-      <LiveActivityPopup />
     </footer>
   );
 };

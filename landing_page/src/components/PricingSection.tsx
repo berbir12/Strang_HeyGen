@@ -6,9 +6,9 @@ const plans = [
     name: "Free",
     price: "$0",
     period: "/month",
-    description: "Great for trying Strang and short daily learning.",
+    description: "Try the complete workflow on one passage before you subscribe.",
     features: [
-      "3 videos per month",
+      "1 complete trial video",
       "Generate from highlighted or pasted text",
       "Watch in extension side panel",
       "Standard generation queue",
@@ -21,9 +21,9 @@ const plans = [
     name: "Pro",
     price: "$19",
     period: "/month",
-    description: "For students, creators, and teams that need more video volume.",
+    description: "For students using Strang throughout the month.",
     features: [
-      "Unlimited video generations",
+      "20 videos per billing period",
       "Priority generation",
       "Shareable video links",
       "Faster support",
@@ -40,7 +40,7 @@ const PricingSection = () => {
       <div className="max-w-5xl mx-auto">
         <div className="text-center mb-12">
           <h2 className="font-display text-3xl sm:text-4xl font-bold mb-4">Simple Pricing</h2>
-          <p className="text-muted-foreground">Start free, upgrade when you need more generation capacity.</p>
+          <p className="text-muted-foreground">Try one passage free. Pro usage resets with each monthly billing period.</p>
         </div>
 
         <div className="grid gap-6 md:grid-cols-2">

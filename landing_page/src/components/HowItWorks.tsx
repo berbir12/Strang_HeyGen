@@ -30,10 +30,10 @@ const HowItWorks = () => {
       <div className="max-w-6xl mx-auto">
         <div className="mb-14 grid gap-5 md:grid-cols-2 md:items-end">
           <h2 className="font-display text-4xl font-semibold tracking-tight sm:text-5xl">
-            From highlight to explanation.
+            Get unstuck without leaving the page.
           </h2>
           <p className="max-w-md text-muted-foreground md:justify-self-end">
-            Three steps, all in the browser. No uploads, prompt writing, or new workspace.
+            Turn one confusing passage into a visual walkthrough, then return to your reading.
           </p>
         </div>
 

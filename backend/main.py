@@ -158,15 +158,18 @@ async def _ensure_user_record(user: dict) -> dict:
 async def require_subscription(request: Request, user: dict = Depends(require_auth)) -> dict:
     """Gate video generation behind subscription / free-tier limit."""
     record = await _ensure_user_record(user)
-    if record.get("subscription_status") in ("active", "trialing"):
-        return {**user, **record}
-
     if record["videos_generated"] >= record["videos_limit"]:
+        is_paid = record.get("subscription_status") in ("active", "trialing")
         raise HTTPException(
             status_code=403,
             detail=(
-                f"Free tier limit reached ({record['videos_limit']} videos). "
-                "Subscribe to generate more."
+                f"{'Monthly Pro' if is_paid else 'Free trial'} limit reached "
+                f"({record['videos_limit']} videos). "
+                + (
+                    "Your allowance resets next billing period."
+                    if is_paid
+                    else "Upgrade to create more videos."
+                )
             ),
         )
     return {**user, **record}
@@ -309,6 +312,8 @@ async def auth_me(user: dict = Depends(require_auth)):
         "subscription_status": record.get("subscription_status", "free"),
         "videos_generated": record.get("videos_generated", 0),
         "videos_limit": record.get("videos_limit", config.FREE_TIER_VIDEO_LIMIT),
+        "current_period_start": record.get("current_period_start"),
+        "current_period_end": record.get("current_period_end"),
     }
 
 

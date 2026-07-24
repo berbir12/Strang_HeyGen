@@ -82,6 +82,8 @@ async def handle_webhook_event(payload: bytes, sig_header: str) -> None:
         "customer.subscription.deleted",
     ):
         await _handle_subscription_change(data)
+    elif event_type == "invoice.paid":
+        await _handle_invoice_paid(data)
 
 
 async def _handle_checkout_completed(session: dict) -> None:
@@ -99,14 +101,45 @@ async def _handle_checkout_completed(session: dict) -> None:
         subscription_id=subscription_id,
         subscription_status="active",
         plan="pro",
-        videos_limit=999999,
+        videos_generated=0,
+        videos_limit=config.PRO_TIER_VIDEO_LIMIT,
     )
     logger.info("User %s subscribed (customer=%s)", user_id, customer_id)
+
+
+async def _handle_invoice_paid(invoice: dict) -> None:
+    """Sync and reset usage when Stripe opens a paid billing period."""
+    customer_id = invoice.get("customer")
+    user = await get_user_by_stripe_customer(customer_id) if customer_id else None
+    if not user:
+        logger.warning("Paid invoice for unknown customer %s", customer_id)
+        return
+
+    lines = invoice.get("lines", {}).get("data", [])
+    period = lines[0].get("period", {}) if lines else {}
+    period_start = period.get("start")
+    period_end = period.get("end")
+    if not period_start:
+        logger.warning("Paid invoice missing billing period for user %s", user["id"])
+        return
+
+    fields = {
+        "subscription_status": "active",
+        "plan": "pro",
+        "videos_limit": config.PRO_TIER_VIDEO_LIMIT,
+        "current_period_start": period_start,
+        "current_period_end": period_end,
+    }
+    if user.get("current_period_start") != period_start:
+        fields["videos_generated"] = 0
+    await update_user(user["id"], **fields)
+    logger.info("User %s paid period synced", user["id"])
 
 
 async def _handle_subscription_change(subscription: dict) -> None:
     customer_id = subscription.get("customer")
     status = subscription.get("status", "")
+    period_start = subscription.get("current_period_start")
     period_end = subscription.get("current_period_end")
 
     user = await get_user_by_stripe_customer(customer_id) if customer_id else None
@@ -115,11 +148,16 @@ async def _handle_subscription_change(subscription: dict) -> None:
         return
 
     is_active = status in ("active", "trialing")
-    await update_user(
-        user["id"],
-        subscription_status=status,
-        plan="pro" if is_active else "free",
-        videos_limit=999999 if is_active else config.FREE_TIER_VIDEO_LIMIT,
-        current_period_end=period_end,
-    )
+    fields = {
+        "subscription_status": status,
+        "plan": "pro" if is_active else "free",
+        "videos_limit": (
+            config.PRO_TIER_VIDEO_LIMIT if is_active else config.FREE_TIER_VIDEO_LIMIT
+        ),
+        "current_period_start": period_start if is_active else None,
+        "current_period_end": period_end if is_active else None,
+    }
+    if is_active and period_start and user.get("current_period_start") != period_start:
+        fields["videos_generated"] = 0
+    await update_user(user["id"], **fields)
     logger.info("User %s subscription → %s", user["id"], status)
