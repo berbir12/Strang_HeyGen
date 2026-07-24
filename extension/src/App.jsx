@@ -105,9 +105,9 @@ function friendlyError(err, context) {
 function progressLabel(status) {
   switch (status) {
     case 'loading':
-      return 'Writing script…';
+      return 'Preparing your explanation…';
     case 'polling':
-      return 'Creating video…';
+      return 'Rendering your video…';
     default:
       return null;
   }
@@ -472,15 +472,14 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
-      <div className="h-px w-full shrink-0 bg-gradient-to-r from-transparent via-primary/45 to-transparent" aria-hidden />
-      <div className="p-4 pb-5 flex flex-col flex-1 min-h-0">
-        <header className="flex items-start justify-between gap-3 mb-5">
+      <div className="p-5 pb-5 flex flex-col flex-1 min-h-0">
+        <header className="flex items-start justify-between gap-3 mb-6 pb-4 border-b border-border">
           <div className="min-w-0">
-            <h1 className="font-display text-xl font-semibold tracking-tight text-gradient leading-none">
+            <h1 className="font-display text-lg font-semibold tracking-tight leading-none">
               Strang
             </h1>
-            <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-              Page text → explainer video
+            <p className="mt-2 text-xs text-muted-foreground">
+              Explain what you’re reading
             </p>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
@@ -511,7 +510,7 @@ export default function App() {
           <div className="mb-3">
             <h2 id="strang-explain-heading" className="section-title">What should we explain?</h2>
             <p className="section-hint mb-0">
-              Paste anything dense or worth summarizing—we turn it into a short talking-head style video.
+              Paste a passage, or pull in text you highlighted on the page.
             </p>
           </div>
           <textarea
@@ -519,8 +518,8 @@ export default function App() {
             aria-labelledby="strang-explain-heading"
             value={selectedText}
             onChange={handleTextChange}
-            placeholder="Drop text here, or pull a highlight from the page with the link below."
-            className={`w-full min-h-[7.5rem] px-3.5 py-3 rounded-xl bg-secondary/90 border text-foreground text-sm leading-relaxed placeholder:text-muted-foreground/80 resize-none focus:outline-none focus:ring-2 focus:ring-primary/50 ${
+            placeholder="Paste text here…"
+            className={`w-full min-h-[8.5rem] px-3.5 py-3 rounded-md bg-card border text-foreground text-sm leading-relaxed placeholder:text-muted-foreground/80 resize-none focus:outline-none focus:ring-2 focus:ring-primary/35 ${
               overHard ? 'border-destructive' : overSoft ? 'border-primary/45' : 'border-border'
             }`}
             rows={5}
@@ -531,7 +530,7 @@ export default function App() {
               onClick={() => { setError(null); loadSelection(); }}
               className="text-sm text-primary hover:text-primary/85 font-semibold underline decoration-primary/30 underline-offset-2"
             >
-              Use selection from page
+              Use highlighted text
             </button>
             {charCount > 0 && (
               <span className={`quiet-stat ${overHard ? '!text-destructive' : overSoft ? '!text-primary' : ''}`}>
@@ -561,9 +560,9 @@ export default function App() {
           disabled={status === 'loading' || status === 'polling' || overHard}
           className="w-full glow-button disabled:opacity-50 disabled:cursor-not-allowed mb-4"
         >
-          {status === 'loading' && 'Writing script…'}
+          {status === 'loading' && 'Preparing…'}
           {status === 'polling' && 'Creating video…'}
-          {(status === 'idle' || status === 'done' || status === 'error') && 'Generate video'}
+          {(status === 'idle' || status === 'done' || status === 'error') && 'Explain this'}
         </button>
 
         {error && (
@@ -640,8 +639,8 @@ export default function App() {
         )}
 
         {showEmptyState && (
-          <div className="mt-1 rounded-2xl border border-dashed border-border/90 bg-secondary/25 px-4 py-5 text-center">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground mb-3">Quick start</p>
+          <div className="mt-1 border-t border-border px-1 py-5">
+            <p className="text-xs font-semibold text-foreground mb-3">How to use Strang</p>
             <ul className="text-sm text-muted-foreground text-left space-y-2.5 max-w-[32ch] mx-auto leading-relaxed">
               {isLoggedIn ? (
                 <>
@@ -651,7 +650,7 @@ export default function App() {
                   </li>
                   <li className="flex gap-2">
                     <span className="font-display font-semibold text-primary shrink-0 w-5">2</span>
-                    <span>Press <span className="text-foreground font-semibold">Generate video</span> and let Strang work.</span>
+                    <span>Press <span className="text-foreground font-semibold">Explain this</span> and keep browsing.</span>
                   </li>
                 </>
               ) : (
@@ -665,7 +664,7 @@ export default function App() {
                   </li>
                   <li className="flex gap-2">
                     <span className="font-display font-semibold text-primary shrink-0 w-5">2</span>
-                    <span>Paste text above, then hit <span className="text-foreground font-semibold">Generate video</span>.</span>
+                    <span>Paste text above, then choose <span className="text-foreground font-semibold">Explain this</span>.</span>
                   </li>
                 </>
               )}

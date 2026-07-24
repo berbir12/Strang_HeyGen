@@ -1,79 +1,86 @@
+const bars = [40, 65, 48, 82, 58, 72, 44, 62, 88, 54, 70, 45];
+
 const HeroSection = () => {
   return (
-    <section className="relative overflow-hidden px-4 pt-28 pb-16">
-      {/* Background glow */}
-      <div className="hero-glow absolute inset-0 pointer-events-none" />
+    <section className="relative overflow-hidden border-b border-border px-5 pb-24 pt-36">
+      <div className="hero-grid absolute inset-0 pointer-events-none" />
 
-      {/* Floating orbs */}
-      <div className="absolute top-1/4 left-1/4 w-72 h-72 rounded-full bg-primary/5 blur-[100px] animate-float" />
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full bg-primary/5 blur-[120px] animate-float" style={{ animationDelay: "3s" }} />
-
-      <div className="relative z-10 max-w-6xl mx-auto grid gap-10 lg:grid-cols-2 lg:items-center">
+      <div className="relative z-10 mx-auto grid max-w-6xl gap-14 lg:grid-cols-[1.05fr_.95fr] lg:items-center">
         <div>
-          <div className="inline-flex items-center gap-2 glass-card px-4 py-2 mb-6">
-            <span className="w-2 h-2 rounded-full bg-primary animate-pulse-glow" />
-            <span className="text-sm text-muted-foreground font-medium">Now live</span>
+          <div className="mb-7 flex items-center gap-3 text-sm font-medium">
+            <span className="h-px w-8 bg-primary" />
+            <span className="text-muted-foreground">Chrome extension · Now available</span>
           </div>
-          {/* <div className="inline-flex items-center gap-2 glass-card px-4 py-2 mb-6">
-            <span className="w-2 h-2 rounded-full bg-primary animate-pulse-glow" />
-            <span className="text-sm text-muted-foreground font-medium">Launching Spring 2026</span>
-          </div> */}
 
-          <h1 className="font-display text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight leading-[1.08] mb-5">
-            Understand any topic faster with{" "}
-            <span className="text-gradient">AI explainer videos</span>
+          <h1 className="mb-6 font-display text-5xl font-semibold leading-[0.98] tracking-[-0.035em] sm:text-6xl md:text-7xl">
+            Turn the paragraph you’re stuck on into{" "}
+            <span className="text-primary italic">a short video.</span>
           </h1>
 
-          <p className="text-lg text-muted-foreground max-w-xl mb-8 leading-relaxed">
-            Strang turns highlighted text into concise videos in your browser side panel.
-            {/* Join the waitlist to get early access when we launch. */}
+          <p className="mb-8 max-w-lg text-lg leading-relaxed text-muted-foreground">
+            Highlight text on any page. Strang explains it visually in the browser, so you can
+            keep reading without opening another app.
           </p>
 
-          <div className="flex flex-wrap items-center gap-3 mb-7">
-            <a href="/signup" className="glow-button">
-              Get Started Free
+          <div className="mb-8 flex flex-wrap items-center gap-5">
+            <a href="/signup" className="primary-button">Try Strang free</a>
+            <a
+              href="#how-it-works"
+              className="border-b border-foreground/40 pb-0.5 text-sm font-semibold text-foreground hover:border-foreground"
+            >
+              See how it works
             </a>
-            <a href="/login" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-              Sign in →
-            </a>
-            {/* <a href="#waitlist" className="glow-button">Join the Waitlist</a> */}
           </div>
 
-          <div className="flex flex-wrap items-center gap-6 text-sm text-muted-foreground">
-            <p>Free plan available</p>
-            <p>2-4 min generation</p>
-            <p>Works on any webpage</p>
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs font-medium text-muted-foreground">
+            <p>3 free videos</p>
+            <p>No credit card</p>
+            <p>Works on most webpages</p>
           </div>
         </div>
 
-        <div className="glass-card p-5 md:p-6 animate-float text-left">
-          <div className="rounded-xl border border-border/80 bg-background/60 p-4 mb-4">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">Selected text</p>
-            <p className="text-sm">
-              "Photosynthesis is the process plants use to convert light energy into chemical energy..."
+        <div className="product-window rotate-[0.7deg] p-3 text-left">
+          <div className="mb-3 flex items-center justify-between border-b border-border px-2 py-2.5">
+            <div className="flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-primary" />
+              <span className="text-sm font-semibold">Strang</span>
+            </div>
+            <span className="text-xs text-muted-foreground">Side panel</span>
+          </div>
+
+          <div className="mb-3 rounded-md border border-border bg-secondary/45 p-4">
+            <p className="mb-2 text-[11px] font-semibold tracking-wide text-muted-foreground">
+              FROM THE PAGE
+            </p>
+            <p className="text-sm leading-relaxed">
+              “Photosynthesis is the process plants use to convert light energy into chemical
+              energy…”
             </p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2 mb-4">
-            <div className="rounded-xl border border-border/80 bg-background/60 p-4">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">Scene style</p>
-              <p className="text-sm font-medium">Diagram + motion graphics</p>
-            </div>
-            <div className="rounded-xl border border-border/80 bg-background/60 p-4">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">Estimated duration</p>
-              <p className="text-sm font-medium">45-60 seconds</p>
-            </div>
-          </div>
-          <div className="rounded-xl border border-primary/25 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-4">
+
+          <div className="rounded-md border border-border bg-card p-4">
             <div className="flex items-center justify-between gap-4">
-              <p className="text-sm text-muted-foreground">Generation status</p>
-              <span className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-                <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
-                Generating video
-              </span>
+              <p className="text-xs font-medium tracking-wide text-muted-foreground">
+                CREATING YOUR VIDEO
+              </p>
+              <span className="text-xs tabular-nums">01:42</span>
             </div>
-            <p className="mt-2 text-base md:text-lg font-semibold">"How plants convert sunlight into energy"</p>
-            <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-secondary">
-              <div className="h-full w-2/3 rounded-full bg-gradient-to-r from-primary to-[hsl(290,90%,72%)]" />
+            <div className="mt-4 flex aspect-video flex-col justify-between rounded-sm bg-[#20231f] p-5 text-white">
+              <p className="max-w-[12ch] font-display text-2xl leading-tight">
+                How plants turn sunlight into fuel
+              </p>
+              <div className="flex h-12 items-end gap-1.5">
+                {bars.map((height, index) => (
+                  <span
+                    key={index}
+                    className="flex-1 bg-[#df694c]"
+                    style={{ height: `${height}%` }}
+                  />
+                ))}
+              </div>
+            </div>
+            <div className="mt-4 h-1 w-full overflow-hidden bg-secondary">
+              <div className="h-full w-2/3 bg-primary" />
             </div>
           </div>
         </div>
