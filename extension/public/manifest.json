@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Strang",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Highlight a dense passage and turn it into a short visual explanation without leaving the page.",
   "permissions": [
     "activeTab",

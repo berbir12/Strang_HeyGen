@@ -43,10 +43,23 @@ of blood flow"). Every visual_prompt must describe something a camera could lite
 - voiceover: The exact narration for this scene (2–4 sentences). Match the visuals; \
 the voice-over and image must align. Write complete, natural sentences.
 
+**Audience controls**
+The user message includes MODE, GOAL, and DEPTH:
+- study mode: teach clearly, define unfamiliar terms, and use a concrete example.
+- research mode: preserve technical terminology, qualifications, assumptions, methods,
+and uncertainty. Never simplify away limitations or causal caveats.
+- exam goal: emphasize distinctions, mechanisms, and facts worth retrieving later.
+- methods goal: prioritize study design, variables, procedure, assumptions, and limitations.
+- simple depth: use plain language while remaining accurate.
+- advanced depth: retain domain language and explain technical relationships precisely.
+
 Output ONLY valid JSON matching this schema (no markdown, no code fence):
 {
   "elaborated_content": "Your full elaborated description from Step 1.",
   "project_title": "Short title for the video (e.g. 'What Is VSD?')",
+  "key_takeaway": "One complete sentence the viewer should remember.",
+  "comprehension_question": "One short question that tests the core idea.",
+  "comprehension_answer": "A concise model answer grounded in the source.",
   "scenes": [
     {
       "visual_type": "3D animation",
@@ -89,6 +102,9 @@ the feeling of" — describe only what is physically visible on screen.
 → recap/takeaway.
 - The final scene voiceover must conclude the explanation with a complete, polished \
 ending sentence (no abrupt stopping).
+- key_takeaway, comprehension_question, and comprehension_answer are required.
+- Stay grounded in the source. If adding background context, do not present it as a
+claim made by the source.
 - Return only the JSON object, no other text."""
 
 
@@ -98,7 +114,7 @@ ending sentence (no abrupt stopping).
     retry=retry_if_exception_type((httpx.TransportError, httpx.TimeoutException)),
     reraise=True,
 )
-async def _call_openai(text: str) -> httpx.Response:
+async def _call_openai(text: str, mode: str, goal: str, depth: str) -> httpx.Response:
     """HTTP call to OpenAI with automatic retry on transport failures."""
     async with httpx.AsyncClient(timeout=60.0) as client:
         return await client.post(
@@ -111,7 +127,13 @@ async def _call_openai(text: str) -> httpx.Response:
                 "model": config.OPENAI_MODEL,
                 "messages": [
                     {"role": "system", "content": DIRECTOR_SYSTEM},
-                    {"role": "user", "content": text},
+                    {
+                        "role": "user",
+                        "content": (
+                            f"MODE: {mode}\nGOAL: {goal}\nDEPTH: {depth}\n\n"
+                            f"SOURCE PASSAGE:\n{text}"
+                        ),
+                    },
                 ],
                 "response_format": {"type": "json_object"},
                 "temperature": 0.1,  # lowered from 0.3 for more deterministic screenplays
@@ -119,7 +141,12 @@ async def _call_openai(text: str) -> httpx.Response:
         )
 
 
-async def get_screenplay(text: str) -> Screenplay:
+async def get_screenplay(
+    text: str,
+    mode: str = "study",
+    goal: str = "understand",
+    depth: str = "standard",
+) -> Screenplay:
     """Generate a Screenplay from user text via OpenAI."""
     if not config.OPENAI_API_KEY:
         raise HTTPException(
@@ -127,7 +154,7 @@ async def get_screenplay(text: str) -> Screenplay:
             detail="OPENAI_API_KEY is not set. Add it to your environment.",
         )
 
-    resp = await _call_openai(text)
+    resp = await _call_openai(text, mode, goal, depth)
 
     if resp.status_code != 200:
         err = resp.text

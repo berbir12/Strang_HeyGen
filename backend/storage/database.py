@@ -63,6 +63,26 @@ async def _ensure_jobs_extension_count_column(db: aiosqlite.Connection) -> None:
         )
 
 
+async def _ensure_jobs_learning_columns(db: aiosqlite.Connection) -> None:
+    """Backfill ownership, personalization, and learning-result fields."""
+    cursor = await db.execute("PRAGMA table_info(jobs)")
+    cols = await cursor.fetchall()
+    names = {c[1] for c in cols}
+    additions = {
+        "user_id": "TEXT",
+        "mode": "TEXT NOT NULL DEFAULT 'study'",
+        "goal": "TEXT NOT NULL DEFAULT 'understand'",
+        "depth": "TEXT NOT NULL DEFAULT 'standard'",
+        "project_title": "TEXT",
+        "key_takeaway": "TEXT",
+        "comprehension_question": "TEXT",
+        "comprehension_answer": "TEXT",
+    }
+    for name, definition in additions.items():
+        if name not in names:
+            await db.execute(f"ALTER TABLE jobs ADD COLUMN {name} {definition}")
+
+
 async def _ensure_users_billing_columns(db: aiosqlite.Connection) -> None:
     """Backfill billing-period fields and current free-plan limits."""
     cursor = await db.execute("PRAGMA table_info(users)")
@@ -90,12 +110,21 @@ async def init_db() -> None:
                 video_url    TEXT,
                 error        TEXT,
                 input_text   TEXT,
+                user_id      TEXT,
+                mode         TEXT NOT NULL DEFAULT 'study',
+                goal         TEXT NOT NULL DEFAULT 'understand',
+                depth        TEXT NOT NULL DEFAULT 'standard',
+                project_title TEXT,
+                key_takeaway TEXT,
+                comprehension_question TEXT,
+                comprehension_answer TEXT,
                 created_at   REAL NOT NULL,
                 updated_at   REAL NOT NULL
             )
         """)
         await _ensure_jobs_engine_column(db)
         await _ensure_jobs_extension_count_column(db)
+        await _ensure_jobs_learning_columns(db)
         await db.execute("""
             CREATE TABLE IF NOT EXISTS waitlist (
                 id             INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -138,19 +167,45 @@ async def init_db() -> None:
 # Jobs
 # ---------------------------------------------------------------------------
 
-async def create_job(job_id: str, input_text: str = "", engine: str = "heygen") -> dict:
+async def create_job(
+    job_id: str,
+    input_text: str = "",
+    engine: str = "heygen",
+    user_id: str | None = None,
+    mode: str = "study",
+    goal: str = "understand",
+    depth: str = "standard",
+) -> dict:
     now = time.time()
     async with aiosqlite.connect(str(_db_path)) as db:
         await db.execute(
-            "INSERT INTO jobs (id, status, engine, input_text, created_at, updated_at) "
-            "VALUES (?, ?, ?, ?, ?, ?)",
-            (job_id, "pending", engine, input_text, now, now),
+            "INSERT INTO jobs "
+            "(id, status, engine, input_text, user_id, mode, goal, depth, created_at, updated_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (job_id, "pending", engine, input_text, user_id, mode, goal, depth, now, now),
         )
         await db.commit()
     return {
         "id": job_id, "status": "pending",
         "engine": engine, "video_id": None, "video_url": None, "error": None,
     }
+
+
+async def list_user_jobs(user_id: str, limit: int = 20) -> list[dict]:
+    async with aiosqlite.connect(str(_db_path)) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute(
+            """
+            SELECT id, status, video_url, project_title, key_takeaway, mode, goal,
+                   depth, input_text, created_at, updated_at
+            FROM jobs
+            WHERE user_id = ?
+            ORDER BY created_at DESC
+            LIMIT ?
+            """,
+            (user_id, limit),
+        )
+        return [dict(row) for row in await cursor.fetchall()]
 
 
 async def get_job(job_id: str) -> dict | None:

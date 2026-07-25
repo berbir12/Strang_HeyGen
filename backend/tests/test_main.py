@@ -163,6 +163,57 @@ def test_init_db_migrates_jobs_extension_count_column(monkeypatch):
             cols = await cursor.fetchall()
             col_names = {c[1] for c in cols}
             assert "extension_count" in col_names
+            assert {
+                "user_id",
+                "mode",
+                "goal",
+                "depth",
+                "project_title",
+                "key_takeaway",
+                "comprehension_question",
+                "comprehension_answer",
+            }.issubset(col_names)
+
+    asyncio.run(_run())
+
+
+def test_generation_preferences_are_validated(client: TestClient):
+    r = client.post(
+        "/generate",
+        json={"text": "A passage", "mode": "writer", "goal": "understand", "depth": "standard"},
+    )
+    assert r.status_code == 422
+
+
+def test_explanation_library_is_user_scoped(monkeypatch):
+    import storage.database as db_module
+
+    async def _run() -> None:
+        await db_module.init_db()
+        await db_module.create_job(
+            "job-a",
+            input_text="Dense passage A",
+            user_id="user-a",
+            mode="research",
+            goal="methods",
+            depth="advanced",
+        )
+        await db_module.create_job(
+            "job-b",
+            input_text="Dense passage B",
+            user_id="user-b",
+        )
+        await db_module.update_job(
+            "job-a",
+            project_title="Study design",
+            key_takeaway="The design limits causal inference.",
+        )
+        items = await db_module.list_user_jobs("user-a")
+        assert len(items) == 1
+        assert items[0]["id"] == "job-a"
+        assert items[0]["mode"] == "research"
+        assert items[0]["goal"] == "methods"
+        assert items[0]["key_takeaway"] == "The design limits causal inference."
 
     asyncio.run(_run())
 

@@ -53,6 +53,7 @@ from storage.database import (
     get_waitlist_position,
     increment_videos_generated,
     init_db,
+    list_user_jobs,
     update_job,
 )
 from utils.auth import require_auth
@@ -183,22 +184,34 @@ async def process_video_job(
     job_id: str,
     text: str,
     user_id: str | None = None,
+    mode: str = "study",
+    goal: str = "understand",
+    depth: str = "standard",
 ) -> None:
     """Background task: OpenAI screenplay -> HeyGen video creation."""
     try:
-        text_hash = hashlib.sha256(text.encode()).hexdigest()
+        cache_input = f"{mode}:{goal}:{depth}:{text}"
+        text_hash = hashlib.sha256(cache_input.encode()).hexdigest()
         cached = await get_cached_screenplay(text_hash)
 
         if cached:
             screenplay = Screenplay.model_validate(cached)
             logger.info("Cache hit for job %s", job_id)
         else:
-            screenplay = await get_screenplay(text)
+            screenplay = await get_screenplay(text, mode=mode, goal=goal, depth=depth)
             await cache_screenplay(text_hash, screenplay.model_dump_json())
             logger.info("Screenplay generated for job %s", job_id)
 
         video_id = await heygen_create_video(screenplay)
-        await update_job(job_id, video_id=video_id, status="processing")
+        await update_job(
+            job_id,
+            video_id=video_id,
+            status="processing",
+            project_title=screenplay.project_title,
+            key_takeaway=screenplay.key_takeaway,
+            comprehension_question=screenplay.comprehension_question,
+            comprehension_answer=screenplay.comprehension_answer,
+        )
         logger.info(
             "HeyGen video queued for job %s (video_id=%s)",
             job_id,
@@ -402,9 +415,25 @@ async def generate(
 
     text = req.text.strip()
     job_id = str(uuid.uuid4())
-    await create_job(job_id, input_text=text, engine="heygen")
+    await create_job(
+        job_id,
+        input_text=text,
+        engine="heygen",
+        user_id=user.get("user_id"),
+        mode=req.mode,
+        goal=req.goal,
+        depth=req.depth,
+    )
 
-    bg.add_task(process_video_job, job_id, text, user.get("user_id"))
+    bg.add_task(
+        process_video_job,
+        job_id,
+        text,
+        user.get("user_id"),
+        req.mode,
+        req.goal,
+        req.depth,
+    )
     logger.info(
         "Job %s queued for user %s (HeyGen)",
         job_id,
@@ -422,11 +451,20 @@ async def get_status(job_id: str, _user: dict = Depends(require_auth)):
         raise HTTPException(status_code=404, detail="Job not found")
 
     status = job["status"]
+    learning = {
+        "title": job.get("project_title"),
+        "mode": job.get("mode"),
+        "goal": job.get("goal"),
+        "depth": job.get("depth"),
+        "key_takeaway": job.get("key_takeaway"),
+        "comprehension_question": job.get("comprehension_question"),
+        "comprehension_answer": job.get("comprehension_answer"),
+    }
 
     if status == "completed":
-        return StatusResponse(status="completed", video_url=job.get("video_url"))
+        return StatusResponse(status="completed", video_url=job.get("video_url"), **learning)
     if status == "failed":
-        return StatusResponse(status="failed", error=job.get("error"))
+        return StatusResponse(status="failed", error=job.get("error"), **learning)
 
     video_id = job.get("video_id")
     engine = (job.get("engine") or "heygen").lower()
@@ -481,7 +519,7 @@ async def get_status(job_id: str, _user: dict = Depends(require_auth)):
 
             await update_job(job_id, status="completed", video_url=url)
             _evict_status_cache(video_id)
-            return StatusResponse(status="completed", video_url=url)
+            return StatusResponse(status="completed", video_url=url, **learning)
 
         if provider_status in provider_failed:
             error = result.get("error", provider_error_default)
@@ -489,7 +527,15 @@ async def get_status(job_id: str, _user: dict = Depends(require_auth)):
             _evict_status_cache(video_id)
             return StatusResponse(status="failed", error=error)
 
-    return StatusResponse(status="pending")
+    return StatusResponse(status="pending", **learning)
+
+
+@app.get("/library")
+async def explanation_library(user: dict = Depends(require_auth)):
+    """Return the signed-in user's recent explanations."""
+    if user.get("user_id") in ("anonymous", "admin"):
+        return {"items": []}
+    return {"items": await list_user_jobs(user["user_id"])}
 
 
 @app.get("/generate/content/{job_id}")

@@ -1,5 +1,7 @@
 """Pydantic models for API requests/responses and the screenplay schema."""
 
+from typing import Literal
+
 from pydantic import BaseModel, EmailStr, Field
 
 
@@ -25,10 +27,16 @@ class Screenplay(BaseModel):
     project_title: str = Field(..., description="Short title for the video")
     scenes: list[Scene] = Field(..., min_length=1)
     elaborated_content: str | None = Field(None, description="Enhanced description from Step 1")
+    key_takeaway: str = Field("", description="One-sentence takeaway the viewer should retain")
+    comprehension_question: str = Field("", description="A short question that checks understanding")
+    comprehension_answer: str = Field("", description="A concise model answer")
 
 
 class GenerateRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=5000)
+    mode: Literal["study", "research"] = "study"
+    goal: Literal["understand", "exam", "methods"] = "understand"
+    depth: Literal["simple", "standard", "advanced"] = "standard"
 
 
 class GenerateResponse(BaseModel):
@@ -40,6 +48,13 @@ class StatusResponse(BaseModel):
     status: str  # pending | processing | completed | failed
     video_url: str | None = None
     error: str | None = None
+    title: str | None = None
+    mode: str | None = None
+    goal: str | None = None
+    depth: str | None = None
+    key_takeaway: str | None = None
+    comprehension_question: str | None = None
+    comprehension_answer: str | None = None
 
 
 class WaitlistRequest(BaseModel):
