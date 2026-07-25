@@ -1,0 +1,42 @@
+services:
+  - type: web
+    name: strang-api
+    runtime: docker
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.4
+      - key: LANDING_PAGE_URL
+        value: https://www.thestrang.com
+      - key: LANDING_PAGE_URL_FOR_REFERRAL
+        value: https://www.thestrang.com
+      - key: CORS_ORIGINS
+        value: https://www.thestrang.com,https://thestrang.com
+      - key: FREE_TIER_VIDEO_LIMIT
+        value: "1"
+      - key: PRO_TIER_VIDEO_LIMIT
+        value: "20"
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: HEYGEN_API_KEY
+        sync: false
+      - key: STRANG_API_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_JWT_SECRET
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: STRIPE_PRICE_ID
+        sync: false
+      - key: PUBLIC_API_BASE_URL
+        sync: false
