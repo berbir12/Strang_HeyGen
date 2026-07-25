@@ -198,6 +198,11 @@ export default function App() {
   const [status, setStatus] = useState('idle');
   const [videoUrl, setVideoUrl] = useState(null);
   const [error, setError] = useState(null);
+  const [mode, setMode] = useState('study');
+  const [goal, setGoal] = useState('understand');
+  const [depth, setDepth] = useState('standard');
+  const [learning, setLearning] = useState(null);
+  const [showAnswer, setShowAnswer] = useState(false);
   // Auth state
   const [authToken, setAuthToken] = useState('');
   const [authEmail, setAuthEmail] = useState('');
@@ -284,6 +289,8 @@ export default function App() {
     setError(null);
     setStatus('loading');
     setVideoUrl(null);
+    setLearning(null);
+    setShowAnswer(false);
 
     // Build headers using a given token, falling back to state/legacy key.
     const headersFor = (overrideToken) => {
@@ -302,7 +309,7 @@ export default function App() {
       let res = await fetch(`${base}/generate`, {
         method: 'POST',
         headers: headersFor(),
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ text, mode, goal, depth }),
       });
 
       // Silently try to refresh the token once before giving up.
@@ -313,7 +320,7 @@ export default function App() {
           res = await fetch(`${base}/generate`, {
             method: 'POST',
             headers: headersFor(refreshed.access_token),
-            body: JSON.stringify({ text }),
+            body: JSON.stringify({ text, mode, goal, depth }),
           });
         }
       }
@@ -324,7 +331,7 @@ export default function App() {
         let fallbackRes = await fetch(`${fallbackBase}/generate`, {
           method: 'POST',
           headers: headersFor(),
-          body: JSON.stringify({ text }),
+          body: JSON.stringify({ text, mode, goal, depth }),
         });
 
         if (fallbackRes.status === 401) {
@@ -334,7 +341,7 @@ export default function App() {
             fallbackRes = await fetch(`${fallbackBase}/generate`, {
               method: 'POST',
               headers: headersFor(refreshed.access_token),
-              body: JSON.stringify({ text }),
+              body: JSON.stringify({ text, mode, goal, depth }),
             });
           }
         }
@@ -422,6 +429,7 @@ export default function App() {
           }
           if (pollData.status === 'completed' && pollData.video_url) {
             setVideoUrl(pollData.video_url);
+            setLearning(pollData);
             setStatus('done');
             return;
           }
@@ -546,6 +554,56 @@ export default function App() {
           )}
         </section>
 
+        <section className="mb-4 border-t border-border pt-4">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="section-title">Explanation settings</h2>
+            <span className="quiet-stat">Saved with video</span>
+          </div>
+          <div className="mb-3 grid grid-cols-2 gap-1 rounded-md bg-secondary p-1">
+            {[
+              ['study', 'Study'],
+              ['research', 'Research'],
+            ].map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setMode(value)}
+                className={`rounded px-3 py-2 text-xs font-semibold transition ${
+                  mode === value ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <label className="text-xs font-medium text-muted-foreground">
+              Goal
+              <select
+                value={goal}
+                onChange={(event) => setGoal(event.target.value)}
+                className="mt-1.5 w-full rounded-md border border-border bg-card px-2.5 py-2 text-xs text-foreground"
+              >
+                <option value="understand">Understand</option>
+                <option value="exam">Review for exam</option>
+                <option value="methods">Analyze methods</option>
+              </select>
+            </label>
+            <label className="text-xs font-medium text-muted-foreground">
+              Depth
+              <select
+                value={depth}
+                onChange={(event) => setDepth(event.target.value)}
+                className="mt-1.5 w-full rounded-md border border-border bg-card px-2.5 py-2 text-xs text-foreground"
+              >
+                <option value="simple">Simple</option>
+                <option value="standard">Standard</option>
+                <option value="advanced">Advanced</option>
+              </select>
+            </label>
+          </div>
+        </section>
+
         {progressStep && (
           <div className="mb-3 flex items-stretch gap-3 rounded-xl bg-primary/[0.09] border border-primary/25 overflow-hidden">
             <div className="w-1 shrink-0 bg-primary/70" aria-hidden />
@@ -630,6 +688,30 @@ export default function App() {
               className="w-full rounded-lg flex-1 min-h-0 border border-border/80 bg-black/40"
               playsInline
             />
+            {learning?.key_takeaway && (
+              <div className="mt-3 border-t border-border pt-3">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-primary">Key takeaway</p>
+                <p className="mt-1 text-sm leading-relaxed">{learning.key_takeaway}</p>
+              </div>
+            )}
+            {learning?.comprehension_question && (
+              <div className="mt-3 rounded-md bg-secondary/60 p-3">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Check your understanding</p>
+                <p className="mt-1 text-sm font-medium">{learning.comprehension_question}</p>
+                <button
+                  type="button"
+                  onClick={() => setShowAnswer((value) => !value)}
+                  className="mt-2 text-xs font-semibold text-primary"
+                >
+                  {showAnswer ? 'Hide answer' : 'Show answer'}
+                </button>
+                {showAnswer && (
+                  <p className="mt-2 border-t border-border pt-2 text-xs leading-relaxed text-muted-foreground">
+                    {learning.comprehension_answer}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         )}
 

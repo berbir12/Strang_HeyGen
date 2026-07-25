@@ -1,33 +1,33 @@
-import { Chrome, ShieldCheck, Sparkles, Video } from "lucide-react";
+import { BookOpenCheck, Chrome, Library, Microscope } from "lucide-react";
 
 const featureCards = [
   {
-    icon: Video,
-    tag: "Capture",
-    title: "Generate from any text",
-    description: "Highlight text on articles, docs, or study materials and turn it into a short explainer video.",
-    metric: "1-click start",
+    icon: BookOpenCheck,
+    tag: "Study",
+    title: "Check your understanding",
+    description: "Every explanation ends with a key takeaway and a question that tests the core idea.",
+    metric: "Active recall",
   },
   {
-    icon: Sparkles,
-    tag: "Direction",
-    title: "AI-directed scene planning",
-    description: "Strang chooses scene style by topic and creates a coherent script before rendering.",
-    metric: "Format-aware",
+    icon: Microscope,
+    tag: "Research",
+    title: "Keep the technical detail",
+    description: "Research mode preserves terminology, methods, assumptions, limitations, and uncertainty.",
+    metric: "Source-aware",
   },
   {
     icon: Chrome,
     tag: "Workflow",
-    title: "Built into your browser",
-    description: "Open the side panel, generate, and watch without switching apps or copying links around.",
+    title: "Stay with the reading",
+    description: "Highlight the exact passage and watch its explanation without opening another workspace.",
     metric: "No context switch",
   },
   {
-    icon: ShieldCheck,
-    tag: "Control",
-    title: "Account and usage controls",
-    description: "Sign in, track usage in your dashboard, and manage free vs Pro limits from one place.",
-    metric: "Free + Pro",
+    icon: Library,
+    tag: "Library",
+    title: "Build a record of what clicked",
+    description: "Study and Research explanations are saved with their takeaway, source passage, and settings.",
+    metric: "Ready to review",
   },
 ];
 

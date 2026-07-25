@@ -1,12 +1,26 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Loader2, CreditCard, ExternalLink } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { STRANG_API_URL } from "@/lib/api";
 
+type LibraryItem = {
+  id: string;
+  status: string;
+  video_url: string | null;
+  project_title: string | null;
+  key_takeaway: string | null;
+  mode: string;
+  goal: string;
+  depth: string;
+  input_text: string;
+  created_at: number;
+};
+
 const Dashboard = () => {
   const { user, session, profile, loading, signOut, refreshProfile } = useAuth();
   const navigate = useNavigate();
+  const [library, setLibrary] = useState<LibraryItem[]>([]);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -16,6 +30,16 @@ const Dashboard = () => {
 
   useEffect(() => {
     refreshProfile();
+  }, [session?.access_token]);
+
+  useEffect(() => {
+    if (!STRANG_API_URL || !session?.access_token) return;
+    fetch(`${STRANG_API_URL}/library`, {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    })
+      .then((response) => (response.ok ? response.json() : { items: [] }))
+      .then((data) => setLibrary(data.items || []))
+      .catch(() => setLibrary([]));
   }, [session?.access_token]);
 
   if (loading || !user) {
@@ -170,6 +194,56 @@ const Dashboard = () => {
             After installing, click "Login" in the extension to connect your account.
           </p>
         </div>
+
+        <section>
+          <div className="mb-4 flex items-end justify-between gap-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Your library</p>
+              <h2 className="mt-1 font-display text-3xl font-semibold">Recent explanations</h2>
+            </div>
+            <span className="text-xs text-muted-foreground">{library.length} saved</span>
+          </div>
+
+          {library.length === 0 ? (
+            <div className="border-t border-border py-8 text-sm text-muted-foreground">
+              Your completed Study and Research explanations will appear here.
+            </div>
+          ) : (
+            <div className="divide-y divide-border border-y border-border">
+              {library.map((item) => (
+                <article key={item.id} className="grid gap-3 py-5 sm:grid-cols-[1fr_auto] sm:items-center">
+                  <div className="min-w-0">
+                    <div className="mb-2 flex flex-wrap items-center gap-2">
+                      <span className="text-xs font-semibold uppercase tracking-wide text-primary">
+                        {item.mode}
+                      </span>
+                      <span className="text-xs text-muted-foreground">{item.depth} · {item.goal}</span>
+                    </div>
+                    <h3 className="font-display text-xl font-semibold">
+                      {item.project_title || "Explanation in progress"}
+                    </h3>
+                    <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-muted-foreground">
+                      {item.key_takeaway || item.input_text}
+                    </p>
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      {new Date(item.created_at * 1000).toLocaleDateString()}
+                    </p>
+                  </div>
+                  {item.video_url && (
+                    <a
+                      href={item.video_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-sm font-semibold text-primary hover:underline"
+                    >
+                      Watch video
+                    </a>
+                  )}
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
       </main>
     </div>
   );
