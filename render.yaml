@@ -26,8 +26,6 @@ services:
         sync: false
       - key: VIDEO_ENGINE
         value: hyperframes
-      - key: HEYGEN_TTS_VOICE_ID
-        sync: false
       - key: STRANG_API_KEY
         sync: false
       - key: SUPABASE_URL
