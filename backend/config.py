@@ -68,6 +68,15 @@ def _build_cors_allowlist(landing_url: str, landing_for_referral: str) -> tuple[
 # --- API Keys ---
 OPENAI_API_KEY: str = os.environ.get("OPENAI_API_KEY", "")
 HEYGEN_API_KEY: str = os.environ.get("HEYGEN_API_KEY", "")
+VIDEO_ENGINE: str = os.environ.get("VIDEO_ENGINE", "hyperframes").strip().lower()
+HEYGEN_TTS_VOICE_ID: str = os.environ.get("HEYGEN_TTS_VOICE_ID", "").strip()
+HEYGEN_TTS_LOCALE: str = os.environ.get("HEYGEN_TTS_LOCALE", "en-US").strip()
+HEYGEN_TTS_SPEED: float = float(os.environ.get("HEYGEN_TTS_SPEED", "1.0"))
+HYPERFRAMES_FPS: int = int(os.environ.get("HYPERFRAMES_FPS", "30"))
+HYPERFRAMES_QUALITY: str = os.environ.get("HYPERFRAMES_QUALITY", "standard").strip()
+HYPERFRAMES_SCENE_PADDING_SEC: float = float(
+    os.environ.get("HYPERFRAMES_SCENE_PADDING_SEC", "0.35")
+)
 
 # --- Storage ---
 DATA_DIR = Path(os.environ.get("DATA_DIR", os.path.dirname(os.path.abspath(__file__))))

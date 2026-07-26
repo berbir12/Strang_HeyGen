@@ -34,6 +34,7 @@ from models.schemas import (
     WaitlistResponse,
 )
 from services.heygen_service import heygen_create_video, heygen_get_status
+from services.hyperframes_service import hyperframes_create_video, hyperframes_get_status
 from services.openai_director import get_screenplay
 from services.stripe_service import (
     create_checkout_session,
@@ -106,23 +107,29 @@ _STATUS_CACHE_TTL = 10  # seconds
 _HEYGEN_TIMEOUT_MINUTES = 15
 
 
-async def _get_cached_heygen_status(video_id: str) -> dict:
-    """Return cached HeyGen status if fresh, otherwise fetch and cache it."""
+async def _get_cached_provider_status(video_id: str, engine: str) -> dict:
+    """Return a cached status response for the job's configured video engine."""
     now = time.monotonic()
-    cached = _status_cache.get(video_id)
+    cache_key = f"{engine}:{video_id}"
+    cached = _status_cache.get(cache_key)
     if cached:
         ts, result = cached
         if now - ts < _STATUS_CACHE_TTL:
             return result
-
-    result = await heygen_get_status(video_id)
-    _status_cache[video_id] = (now, result)
+    result = (
+        await hyperframes_get_status(video_id)
+        if engine == "hyperframes"
+        else await heygen_get_status(video_id)
+    )
+    _status_cache[cache_key] = (now, result)
     return result
 
 
 def _evict_status_cache(video_id: str) -> None:
     """Remove a video from the status cache once its job reaches a terminal state."""
     _status_cache.pop(video_id, None)
+    _status_cache.pop(f"heygen:{video_id}", None)
+    _status_cache.pop(f"hyperframes:{video_id}", None)
 
 
 # ---------------------------------------------------------------------------
@@ -188,7 +195,7 @@ async def process_video_job(
     goal: str = "understand",
     depth: str = "standard",
 ) -> None:
-    """Background task: OpenAI screenplay -> HeyGen video creation."""
+    """Background task: screenplay -> configured deterministic video engine."""
     try:
         cache_input = f"{mode}:{goal}:{depth}:{text}"
         text_hash = hashlib.sha256(cache_input.encode()).hexdigest()
@@ -202,10 +209,16 @@ async def process_video_job(
             await cache_screenplay(text_hash, screenplay.model_dump_json())
             logger.info("Screenplay generated for job %s", job_id)
 
-        video_id = await heygen_create_video(screenplay)
+        engine = config.VIDEO_ENGINE if config.VIDEO_ENGINE in ("hyperframes", "heygen") else "hyperframes"
+        video_id = (
+            await hyperframes_create_video(screenplay)
+            if engine == "hyperframes"
+            else await heygen_create_video(screenplay)
+        )
         await update_job(
             job_id,
             video_id=video_id,
+            engine=engine,
             status="processing",
             project_title=screenplay.project_title,
             key_takeaway=screenplay.key_takeaway,
@@ -213,7 +226,8 @@ async def process_video_job(
             comprehension_answer=screenplay.comprehension_answer,
         )
         logger.info(
-            "HeyGen video queued for job %s (video_id=%s)",
+            "%s video queued for job %s (video_id=%s)",
+            engine,
             job_id,
             video_id,
         )
@@ -418,7 +432,7 @@ async def generate(
     await create_job(
         job_id,
         input_text=text,
-        engine="heygen",
+        engine=config.VIDEO_ENGINE if config.VIDEO_ENGINE in ("hyperframes", "heygen") else "hyperframes",
         user_id=user.get("user_id"),
         mode=req.mode,
         goal=req.goal,
@@ -435,9 +449,10 @@ async def generate(
         req.depth,
     )
     logger.info(
-        "Job %s queued for user %s (HeyGen)",
+        "Job %s queued for user %s (%s)",
         job_id,
         user.get("user_id", client_id),
+        config.VIDEO_ENGINE,
     )
 
     return GenerateResponse(job_id=job_id)
@@ -451,6 +466,8 @@ async def get_status(job_id: str, _user: dict = Depends(require_auth)):
         raise HTTPException(status_code=404, detail="Job not found")
 
     status = job["status"]
+    video_id = job.get("video_id")
+    engine = (job.get("engine") or "heygen").lower()
     learning = {
         "title": job.get("project_title"),
         "mode": job.get("mode"),
@@ -462,12 +479,20 @@ async def get_status(job_id: str, _user: dict = Depends(require_auth)):
     }
 
     if status == "completed":
-        return StatusResponse(status="completed", video_url=job.get("video_url"), **learning)
+        video_url = job.get("video_url")
+        # Hyperframes returns short-lived signed URLs. Refresh from the permanent
+        # render_id whenever a completed library item is opened.
+        if engine == "hyperframes" and video_id:
+            try:
+                refreshed = await hyperframes_get_status(video_id)
+                if refreshed.get("status") == "completed" and refreshed.get("video_url"):
+                    video_url = refreshed["video_url"]
+                    await update_job(job_id, video_url=video_url)
+            except Exception as exc:
+                logger.warning("Could not refresh Hyperframes URL for %s: %s", job_id, exc)
+        return StatusResponse(status="completed", video_url=video_url, **learning)
     if status == "failed":
         return StatusResponse(status="failed", error=job.get("error"), **learning)
-
-    video_id = job.get("video_id")
-    engine = (job.get("engine") or "heygen").lower()
 
     if video_id and status == "processing":
         if engine == "openai":
@@ -500,7 +525,7 @@ async def get_status(job_id: str, _user: dict = Depends(require_auth)):
         provider_error_default = "HeyGen reported failure"
 
         try:
-            result = await _get_cached_heygen_status(video_id)
+            result = await _get_cached_provider_status(video_id, engine)
             provider_status = result.get("status", "pending")
         except Exception as exc:
             error = f"HeyGen status check failed: {exc}"
@@ -556,6 +581,14 @@ async def get_generated_video_content(job_id: str):
         )
 
     video_url = job.get("video_url")
+    if engine == "hyperframes" and job.get("video_id"):
+        try:
+            refreshed = await hyperframes_get_status(job["video_id"])
+            if refreshed.get("status") == "completed" and refreshed.get("video_url"):
+                video_url = refreshed["video_url"]
+                await update_job(job_id, video_url=video_url)
+        except Exception as exc:
+            logger.warning("Could not refresh Hyperframes content URL for %s: %s", job_id, exc)
     if video_url:
         return RedirectResponse(url=video_url, status_code=307)
     raise HTTPException(status_code=404, detail="Video URL not found")
@@ -661,6 +694,8 @@ def health():
         "status": "ok",
         "openai_configured": bool(config.OPENAI_API_KEY.strip()),
         "heygen_configured": bool(config.HEYGEN_API_KEY.strip()),
+        "video_engine": config.VIDEO_ENGINE,
+        "tts_voice_configured": bool(config.HEYGEN_TTS_VOICE_ID.strip()),
         "auth_configured": bool(config.SUPABASE_JWT_SECRET),
         "stripe_configured": bool(config.STRIPE_SECRET_KEY),
     }

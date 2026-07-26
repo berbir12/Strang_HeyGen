@@ -1,6 +1,6 @@
 # Strang — AI Video Explainer
 
-**Turn any text into a video. In your browser.**
+**Turn dense passages into clear, narrated visual explanations. In your browser.**
 
 Strang is a Chrome extension that turns what you read into what you watch. Highlight text on any webpage—or paste it in—and get a clear, AI-generated explainer video in minutes. No switching apps, no copying links. Just select, generate, and watch.
 
@@ -31,6 +31,13 @@ Whether you’re studying, researching, or just curious, Strang turns dense or c
 - A **backend service** that handles video generation (configurable in the extension settings).
 
 The extension talks to your backend; you can point it at your own server or a hosted endpoint.
+
+By default, the backend uses HeyGen Starfish for per-scene narration and
+Hyperframes Cloud for deterministic 1080p motion-graphics rendering. Set
+`HEYGEN_TTS_VOICE_ID` to a voice returned by
+`GET /v3/voices?engine=starfish`, or leave it empty to use the first compatible
+public English voice. Set `VIDEO_ENGINE=heygen` only when you intentionally
+want to fall back to the more expensive Video Agent workflow.
 
 ---
 
